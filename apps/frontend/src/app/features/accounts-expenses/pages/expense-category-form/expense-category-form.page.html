@@ -1,12 +1,25 @@
 <div class="category-form-shell">
-  <!-- Page Header with Breadcrumbs & Status Pill -->
+  <!-- Breadcrumb Navigation -->
+  <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+    <ol class="breadcrumb-list">
+      <li class="breadcrumb-item">
+        <a routerLink="/app/expenses" class="breadcrumb-link">Finance</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item">
+        <a routerLink="/app/expense-categories" class="breadcrumb-link">Expense categories</a>
+      </li>
+      <li class="breadcrumb-separator" aria-hidden="true">/</li>
+      <li class="breadcrumb-item breadcrumb-item--current" aria-current="page">
+        {{ isEdit() ? 'Edit category' : 'Create category' }}
+      </li>
+    </ol>
+  </nav>
+
+  <!-- Page Header -->
   <header class="page-head">
     <div class="page-head__title-group">
-      <nav class="page-head__breadcrumbs" aria-label="Breadcrumb">
-        <a class="breadcrumb-link" routerLink="/app/expense-categories">Expense categories</a>
-        <span class="breadcrumb-sep">/</span>
-        <span class="breadcrumb-current">{{ isEdit() ? 'Edit category' : 'Create category' }}</span>
-      </nav>
+      <p class="page-head__eyebrow">Finance &amp; Expenses</p>
       <div class="page-head__heading-wrap">
         <h1 class="page-head__title">{{ pageTitle() }}</h1>
         @if (isEdit()) {
@@ -32,8 +45,6 @@
     </div>
   </header>
 
-  <p class="required-hint">* Required fields</p>
-
   @if (loading()) {
   <div class="state-container">
     <agrivio-ui-loading-state label="Loading category definition…" />
@@ -50,25 +61,26 @@
   }
 
   <form class="cat-form" [formGroup]="form" (ngSubmit)="save()" data-testid="expense-category-form">
-    <section class="form-card">
-      <div class="form-card__header">
-        <div class="form-card__icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
+    <div class="form-layout">
+      <!-- Main Form Card -->
+      <section class="form-card">
+        <div class="form-card__header">
+          <div class="form-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="form-card__title">Basic Information</h2>
+            <p class="form-card__subtitle">Core classification and display name for operating expenses.</p>
+          </div>
         </div>
-        <div>
-          <h2 class="form-card__title">Basic Information</h2>
-          <p class="form-card__subtitle">Core classification and display name for operating expenses.</p>
-        </div>
-      </div>
 
-      <div class="form-card__body">
-        <div class="form-grid form-grid--2col">
+        <div class="form-card__body">
           @if (showName()) {
           <div class="ag-field">
             <agrivio-ui-field-label
@@ -76,12 +88,15 @@
               for="expense-category-name"
               [required]="fieldRequired(form.controls.name)"
             />
+            <p class="field-helper">
+              {{ isEdit() ? 'Descriptive title for this operating expense classification.' : 'Use a clear, concise name that reflects the type of operating expense.' }}
+            </p>
             <input
               id="expense-category-name"
               class="ag-input"
               [class.ag-input--invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted())"
               formControlName="name"
-              placeholder="Enter expense category name"
+              placeholder="e.g., Utilities, Fuel & Transport, Office Supplies"
               data-testid="expense-category-name"
               [attr.aria-required]="fieldRequired(form.controls.name) ? 'true' : null"
               [attr.aria-invalid]="fieldError(form.controls.name, 'Name', formSubmitAttempted()) ? 'true' : null"
@@ -90,7 +105,6 @@
             @if (fieldError(form.controls.name, 'Name', formSubmitAttempted()); as nameError) {
             <p class="field-error" role="alert">{{ nameError }}</p>
             }
-            <p class="field-hint">Use a clear, concise name that reflects the type of operating expense.</p>
           </div>
           }
 
@@ -102,54 +116,250 @@
               for="expense-category-status"
               [required]="true"
             />
+            <p class="field-helper">Only active categories can be selected when recording new expenses.</p>
             <select
               id="expense-category-status"
               class="ag-select"
               formControlName="status"
               data-testid="expense-category-status"
+              [attr.disabled]="!canChangeStatus() ? true : null"
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-            <p class="field-hint">Inactive categories cannot be selected on new expense records.</p>
+          </div>
+          }
+
+          <!-- Informational Context Note -->
+          @if (isEdit() && form.controls.status.value === 'active') {
+          <div class="info-callout">
+            <div class="info-callout__icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div class="info-callout__content">
+              <p class="info-callout__text">
+                This category is active. You can deactivate it to prevent new usage without affecting historical expense ledgers.
+              </p>
+            </div>
+          </div>
+          } @else if (isEdit() && form.controls.status.value === 'inactive') {
+          <div class="info-callout info-callout--inactive">
+            <div class="info-callout__icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div class="info-callout__content">
+              <p class="info-callout__text">
+                This category is inactive. Inactive categories cannot be selected on new expense records.
+              </p>
+            </div>
+          </div>
+          } @else {
+          <div class="info-callout">
+            <div class="info-callout__icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div class="info-callout__content">
+              <p class="info-callout__text">
+                New expense categories are created as Active by default and are immediately available for logging expenses.
+              </p>
+            </div>
           </div>
           }
         </div>
 
-        @if (isEdit() && category()?.status === 'active') {
-        <div class="info-note">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-          <span>This category is active. You can deactivate it to prevent new usage without affecting historical expense ledgers.</span>
-        </div>
-        }
-      </div>
-    </section>
+        <!-- Form Actions -->
+        <footer class="form-actions">
+          <div class="form-actions__left">
+            <button
+              class="ag-btn ag-btn--primary"
+              type="submit"
+              [disabled]="!(categoryId() ? canEditCategory() : canCreate()) || form.invalid || saving()"
+              data-testid="expense-category-save"
+            >
+              @if (saving()) {
+              <svg class="spin-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              <span>Saving…</span>
+              } @else {
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              <span>{{ isEdit() ? 'Save changes' : 'Save category' }}</span>
+              }
+            </button>
+            <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories">Cancel</a>
+          </div>
+          @if (isEdit() && canDelete()) {
+          <div class="form-actions__right">
+            <button
+              type="button"
+              class="ag-btn ag-btn--danger-ghost"
+              [disabled]="deleting()"
+              (click)="askDelete()"
+              data-testid="expense-category-delete"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              <span>{{ deleting() ? 'Deleting…' : 'Delete permanently' }}</span>
+            </button>
+          </div>
+          }
+        </footer>
+      </section>
 
-    <!-- Form Actions -->
-    <div class="form-actions">
-      <div class="form-actions__left">
-        <button
-          class="ag-btn ag-btn--primary"
-          type="submit"
-          [disabled]="!(categoryId() ? canEditCategory() : canCreate()) || form.invalid || saving()"
-          data-testid="expense-category-save"
-        >
-          {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Save category') }}
-        </button>
-        <a class="ag-btn ag-btn--secondary" routerLink="/app/expense-categories">Cancel</a>
-      </div>
-      @if (isEdit() && canDelete()) {
-      <button
-        type="button"
-        class="delete-link"
-        [disabled]="deleting()"
-        (click)="askDelete()"
-        data-testid="expense-category-delete"
-      >
-        {{ deleting() ? 'Deleting…' : 'Delete permanently' }}
-      </button>
+      <!-- Right Guidance & Operational Summary Sidebar -->
+      @if (!isEdit()) {
+      <aside class="guidance-card" aria-label="Category guidance and best practices">
+        <div class="guidance-card__header">
+          <div class="guidance-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+              <path d="M7 7h.01" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="guidance-card__title">Category guidance</h2>
+            <p class="guidance-card__subtitle">Best practices for organizing operating expenses.</p>
+          </div>
+        </div>
+
+        <div class="preview-box">
+          <div class="preview-box__item">
+            <span class="preview-box__label">Category preview</span>
+            <span class="preview-box__value preview-box__value--highlight">
+              {{ form.controls.name.value || 'e.g. Utilities' }}
+            </span>
+          </div>
+          <div class="preview-box__item">
+            <span class="preview-box__label">Initial status</span>
+            <span class="status-indicator status-indicator--active">
+              <span class="status-indicator__dot"></span> Active
+            </span>
+          </div>
+        </div>
+
+        <p class="preview-helper">Categories group business expenses for profit &amp; loss statements and tax records.</p>
+
+        <div class="guidance-checklist">
+          <span class="guidance-checklist__title">Naming recommendations</span>
+          <ul class="guidance-list">
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Use clear, functional names like <strong>Utilities</strong>, <strong>Fuel &amp; Transport</strong>, or <strong>Repairs</strong>.</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Keep high-level buckets to avoid fragmented, confusing accounting.</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Expenses tagged to this category reflect immediately in financial summaries.</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+      } @else {
+      <aside class="guidance-card" aria-label="Category summary and lifecycle rules">
+        <div class="guidance-card__header">
+          <div class="guidance-card__icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+              <path d="M7 7h.01" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="guidance-card__title">Category summary</h2>
+            <p class="guidance-card__subtitle">Review category details and ledger allocation rules.</p>
+          </div>
+        </div>
+
+        <div class="summary-list">
+          <div class="summary-row">
+            <span class="summary-row__label">Display Name</span>
+            <span class="summary-row__value">{{ form.controls.name.value || '—' }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row__label">Status</span>
+            <span class="summary-row__value">
+              <span
+                class="status-indicator"
+                [class.status-indicator--active]="form.controls.status.value === 'active'"
+                [class.status-indicator--inactive]="form.controls.status.value === 'inactive'"
+              >
+                <span class="status-indicator__dot"></span>
+                {{ form.controls.status.value === 'active' ? 'Active' : 'Inactive' }}
+              </span>
+            </span>
+          </div>
+          @if (categoryId()) {
+          <div class="summary-row">
+            <span class="summary-row__label">Category ID</span>
+            <span class="summary-row__value font-mono">{{ categoryId() }}</span>
+          </div>
+          }
+        </div>
+
+        <div class="guidance-checklist">
+          <span class="guidance-checklist__title">Ledger &amp; audit rules</span>
+          <ul class="guidance-list">
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Categories with existing recorded expenses cannot be permanently deleted.</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Deactivation prevents future expense selection while safeguarding historical reporting.</span>
+            </li>
+            <li class="guidance-item">
+              <div class="guidance-item__check">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span class="guidance-item__label">Name updates apply across all associated reports and ledger rollups.</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
       }
     </div>
   </form>
@@ -165,3 +375,4 @@
   (confirmed)="confirmDelete()"
   (dismiss)="deleteConfirmOpen.set(false)"
 />
+
