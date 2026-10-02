@@ -1,6 +1,6 @@
 import { API, activationTokenFromUrl } from './e2e-origins';
-import { login, enterPlatformWorkspace } from './e2e-auth-helper';
-import { expect, test, type Page } from '@playwright/test';
+import { login, enterPlatformWorkspace, seedStarterPlan } from './e2e-auth-helper';
+import { expect, test } from '@playwright/test';
 
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
@@ -110,6 +110,7 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await page.getByTestId('opening-quantity').fill('50');
     await page.getByTestId('opening-inventory-value').fill('2500.00');
     await page.getByTestId('opening-stock-save').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Post Opening Stock' }).click();
     await expect(page.getByTestId('opening-stock-success')).toBeVisible();
 
     await page.getByTestId('nav-sales').click();
@@ -149,22 +150,4 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
   });
 });
 
-async function seedStarterPlan(request: import('@playwright/test').APIRequestContext) {
-  const csrf = await request.post(`${API}/api/v1/auth/csrf`);
-  const csrfBody = await csrf.json();
-  const token = csrfBody.data.csrfToken as string;
-  const plan = await request.post(`${API}/api/v1/platform/subscription-plans`, {
-    headers: {
-      'X-CSRF-Token': token,
-      'X-Platform-Actor': 'super-admin',
-    },
-    data: {
-      planCode: 'Starter',
-      activate: true,
-      monthlyPriceMinorUnits: 1000,
-      limits: { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
-    },
-  });
-  expect([200, 201]).toContain(plan.status());
-}
 

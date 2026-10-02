@@ -17,7 +17,7 @@ export const appRoutes: Route[] = [
   },
   {
     path: 'signin',
-    canActivate: [signInGuard],
+    canActivate: [publicOnlyGuard],
     loadComponent: () => import('./features/auth/pages/login/login.page').then((m) => m.LoginPage),
   },
   {

@@ -463,22 +463,6 @@ export class SaleEditPage {
       } else if (!customerDisabled && customerIdCtrl.disabled) {
         customerIdCtrl.enable({ emitEvent: false });
       }
-
-      const branchDisabled = this.onlyBranch();
-      const branchCtrl = this.form.controls.branchId;
-      if (branchDisabled && branchCtrl.enabled) {
-        branchCtrl.disable({ emitEvent: false });
-      } else if (!branchDisabled && branchCtrl.disabled) {
-        branchCtrl.enable({ emitEvent: false });
-      }
-
-      const warehouseDisabled = this.onlyWarehouse();
-      const warehouseCtrl = this.form.controls.warehouseId;
-      if (warehouseDisabled && warehouseCtrl.enabled) {
-        warehouseCtrl.disable({ emitEvent: false });
-      } else if (!warehouseDisabled && warehouseCtrl.disabled) {
-        warehouseCtrl.enable({ emitEvent: false });
-      }
     });
 
     this.returnForm.controls.resolution.valueChanges.subscribe((resolution) => {

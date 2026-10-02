@@ -99,11 +99,13 @@ export function formatAccountOption(account: {
   name: string;
   code?: string | null;
   type?: string | null;
+  accountType?: string | null;
   currency?: string | null;
 }): DropdownOption {
   const parts: string[] = [];
   if (account.code) parts.push(account.code);
-  if (account.type) parts.push(account.type);
+  const type = account.accountType || account.type;
+  if (type) parts.push(type);
 
   return {
     value: account.id,
@@ -167,9 +169,9 @@ export function formatPackagingUnitOption(unit: {
   name: string;
   conversionFactor?: string | number | null;
 }): DropdownOption {
+  const meta = unit.conversionFactor ? `×${unit.conversionFactor}` : undefined;
   return {
     value: unit.id,
-    label: unit.name,
-    meta: unit.conversionFactor ? `×${unit.conversionFactor}` : undefined,
+    label: meta ? `${unit.name} (${meta})` : unit.name,
   };
 }

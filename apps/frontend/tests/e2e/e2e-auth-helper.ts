@@ -54,3 +54,67 @@ export async function enterPlatformWorkspace(page: Page): Promise<void> {
 
   await expect(page.getByTestId('authenticated-shell')).toBeVisible();
 }
+
+import { API } from './e2e-origins';
+import type { APIRequestContext } from '@playwright/test';
+
+/**
+ * Seed an active Starter subscription plan with fully compliant R1 catalog metadata.
+ */
+export async function seedStarterPlan(
+  request: APIRequestContext,
+  extras?: {
+    limits?: Partial<{
+      products: number;
+      activeUsers: number;
+      branches: number;
+      warehouses: number;
+      customers: number;
+      suppliers: number;
+      users?: number;
+    }>;
+    entitlements?: Record<string, unknown>;
+  },
+): Promise<void> {
+  const csrf = await request.post(`${API}/api/v1/auth/csrf`);
+  const csrfBody = await csrf.json();
+  const token = csrfBody.data.csrfToken as string;
+  const limitsInput = extras?.limits ?? {};
+  const plan = await request.post(`${API}/api/v1/platform/subscription-plans`, {
+    headers: {
+      'X-CSRF-Token': token,
+      'X-Platform-Actor': 'super-admin',
+    },
+    data: {
+      planCode: 'Starter',
+      displayName: 'Starter',
+      shortDescription: 'Essential POS and inventory for a single-location agricultural retailer.',
+      targetCustomer: 'Single-shop agricultural retailer',
+      catalogRevision: 'R1-CATALOG-1',
+      currency: 'PKR',
+      monthlyPriceMinorUnits: 500000,
+      annualPriceMinorUnits: 5000000,
+      annualDiscountPercent: 16.67,
+      trialEligible: true,
+      activate: true,
+      limits: {
+        products: limitsInput.products ?? 200,
+        activeUsers: limitsInput.activeUsers ?? limitsInput.users ?? 20,
+        branches: limitsInput.branches ?? 10,
+        warehouses: limitsInput.warehouses ?? 20,
+        customers: limitsInput.customers ?? 100,
+        suppliers: limitsInput.suppliers ?? 50,
+      },
+      entitlements: {
+        imports: false,
+        reportsExports: false,
+        auditHistory: '30d',
+        backupPolicyRef: 'weekly',
+        dedicatedCloudEligible: false,
+        supportLevelRef: 'standard',
+        ...(extras?.entitlements ?? {}),
+      },
+    },
+  });
+  expect([200, 201]).toContain(plan.status());
+}
