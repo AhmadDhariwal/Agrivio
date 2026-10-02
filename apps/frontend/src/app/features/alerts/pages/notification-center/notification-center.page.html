@@ -352,7 +352,8 @@
                   @if (item.targetRoute) {
                     <a
                       class="ag-btn ag-btn--sm ag-btn--ghost"
-                      [routerLink]="item.targetRoute"
+                      [routerLink]="item.targetPath"
+                      [queryParams]="item.targetQueryParams"
                       (click)="markRead(item)"
                       data-testid="open-notification-route"
                     >
@@ -437,7 +438,8 @@
             @if (item.targetRoute) {
               <a
                 class="ag-btn ag-btn--sm ag-btn--ghost"
-                [routerLink]="item.targetRoute"
+                [routerLink]="item.targetPath"
+                [queryParams]="item.targetQueryParams"
                 (click)="markRead(item)"
               >
                 Open
