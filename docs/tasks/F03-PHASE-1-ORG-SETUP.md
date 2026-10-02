@@ -85,7 +85,7 @@ Organization profile/settings, branch/warehouse list/detail/options, and employe
 
 ## Smart transaction location defaults follow-up (2026-09-14)
 
-* Branches can be marked as the single organization default; warehouses can be assigned to a branch and marked as that branch's single default.
+* Branches can be marked as the single organization default; warehouses can be assigned to a branch and marked as that branch's single default. Branch and warehouse list pages display a visual 'Default' badge across desktop tables and mobile cards.
 * Existing warehouses without `branchId` remain organization-wide for backward compatibility. New/edit warehouse forms require an active branch.
 * New Sale resolves assigned active locations through one shared frontend resolver: single option, active session preference, configured default, then manual selection. Branch changes always re-evaluate warehouse validity.
 * Sales and Purchases reject branch-scoped warehouses used with another branch; existing tenant, active-state, assignment, inventory, and costing enforcement remains authoritative.
