@@ -30,7 +30,8 @@ Release 1 uses server-managed opaque sessions for the browser application.
 * Secure cookie
 * `HttpOnly`
 * `Secure` in production
-* `SameSite=Lax`
+* `SameSite=Lax` by default; the production `staging` profile uses `SameSite=None; Secure`
+  only because its allowlisted Pages frontend and Render API are cross-site
 * Session token stored hashed in the database
 * Session identifier rotated after login, activation, context switch, and sensitive privilege changes
 * Frontend JavaScript must not read the session token or session cookie
@@ -127,6 +128,11 @@ Because Release 1 uses cookie sessions:
 * The CSRF token is rotated after login, activation, and context switch.
 * CSRF token and session cookie are separate values.
 * Frontend JavaScript must never read the session cookie.
+* A cross-site browser deployment must use `SameSite=None; Secure`; this permits the browser to
+  send the HttpOnly session cookie but does not weaken the synchronizer-token or Origin checks.
+* Cross-site cookie sessions remain subject to browser third-party-cookie policy. A same-site
+  frontend/API domain arrangement or same-origin API proxy is required for reliable support across
+  browsers that block third-party cookies.
 * Validate Origin or Referer on browser-originated state-changing requests.
 * CORS uses an explicit allowlist.
 * Credentials are not permitted from arbitrary origins.

@@ -312,6 +312,15 @@
                 </svg>
               </div>
               <span class="branch-cell__name" [title]="item.name">{{ item.name }}</span>
+              @if (item.isDefault) {
+              <span
+                class="default-badge"
+                title="Organization default branch"
+                data-testid="branch-default-badge"
+              >
+                Default
+              </span>
+              }
             </div>
           </td>
 
@@ -477,7 +486,18 @@
     <article class="branch-card" [class.branch-card--inactive]="item.status === 'inactive'">
       <div class="branch-card__head">
         <div class="branch-card__name-group">
-          <h2 class="branch-card__name">{{ item.name }}</h2>
+          <div class="branch-card__title-row">
+            <h2 class="branch-card__name">{{ item.name }}</h2>
+            @if (item.isDefault) {
+            <span
+              class="default-badge"
+              title="Organization default branch"
+              data-testid="branch-default-badge-mobile"
+            >
+              Default
+            </span>
+            }
+          </div>
           @if (showCodeField() && item.code) {
           <span class="branch-card__code">{{ item.code }}</span>
           }

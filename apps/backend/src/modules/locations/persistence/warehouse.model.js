@@ -10,6 +10,11 @@ const warehouseSchema = new mongoose.Schema(
       ref: 'Organization',
       index: true,
     },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null,
+    },
     name: { type: String, required: true, trim: true },
     nameNormalized: { type: String, required: true },
     code: { type: String, trim: true, default: '' },
@@ -19,6 +24,7 @@ const warehouseSchema = new mongoose.Schema(
       enum: WAREHOUSE_STATUSES,
       default: 'active',
     },
+    isDefault: { type: Boolean, required: true, default: false },
     version: { type: Number, required: true, default: 1 },
   },
   { timestamps: true, collection: 'warehouses' },
@@ -26,6 +32,11 @@ const warehouseSchema = new mongoose.Schema(
 
 warehouseSchema.index({ organizationId: 1, status: 1, createdAt: -1 });
 warehouseSchema.index({ organizationId: 1, nameNormalized: 1 }, { unique: true });
+warehouseSchema.index({ organizationId: 1, branchId: 1, status: 1, createdAt: -1 });
+warehouseSchema.index(
+  { organizationId: 1, branchId: 1, isDefault: 1 },
+  { unique: true, partialFilterExpression: { isDefault: true } },
+);
 
 const WarehouseModel =
   mongoose.models['Warehouse'] || mongoose.model('Warehouse', warehouseSchema);

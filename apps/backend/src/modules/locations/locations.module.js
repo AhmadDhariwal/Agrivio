@@ -86,6 +86,9 @@ function createLocationsService(deps) {
 
       try {
         return await transactionRunner.run(async (session) => {
+          if (input.isDefault) {
+            await store.clearBranchDefault(session, organizationId);
+          }
           const created = await store.insertBranch(session, {
             organizationId,
             ...input,
@@ -116,8 +119,19 @@ function createLocationsService(deps) {
             throw notFound('Branch not found');
           }
           assertOptimisticVersion(current, expectedVersion);
+          if (patch.status === 'inactive' && current.isDefault === true && patch.isDefault === undefined) {
+            patch.isDefault = false;
+          }
+          if (patch.isDefault === true && (patch.status ?? current.status) !== 'active') {
+            throw validationFailed('Only an active branch can be the organization default', [
+              { field: 'isDefault', message: 'default branch must be active' },
+            ]);
+          }
           if (typeof deps.capabilityService?.assertBranchPatchAllowed === 'function') {
             await deps.capabilityService.assertBranchPatchAllowed(organizationId, current, patch);
+          }
+          if (patch.isDefault === true) {
+            await store.clearBranchDefault(session, organizationId, branchId);
           }
           const updated = await store.updateBranch(session, organizationId, branchId, {
             ...patch,
@@ -189,6 +203,14 @@ function createLocationsService(deps) {
 
     async createWarehouse(organizationId, body, actor) {
       const input = parseWarehouseCreate(body);
+      if (input.branchId) {
+        const branch = await store.findBranchById(organizationId, input.branchId);
+        if (branch === null || branch.status !== 'active') {
+          throw validationFailed('Warehouse branch must be an active branch in this organization', [
+            { field: 'branchId', message: 'select an active branch in this organization' },
+          ]);
+        }
+      }
       const currentUsage = await store.countActiveWarehouses(organizationId);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
@@ -199,6 +221,9 @@ function createLocationsService(deps) {
 
       try {
         return await transactionRunner.run(async (session) => {
+          if (input.isDefault) {
+            await store.clearWarehouseDefault(session, organizationId, input.branchId);
+          }
           const created = await store.insertWarehouse(session, {
             organizationId,
             ...input,
@@ -228,6 +253,23 @@ function createLocationsService(deps) {
             throw notFound('Warehouse not found');
           }
           assertOptimisticVersion(current, expectedVersion);
+          const nextBranchId = patch.branchId === undefined ? current.branchId ?? null : patch.branchId;
+          if (nextBranchId) {
+            const branch = await store.findBranchById(organizationId, nextBranchId);
+            if (branch === null || branch.status !== 'active') {
+              throw validationFailed('Warehouse branch must be an active branch in this organization', [
+                { field: 'branchId', message: 'select an active branch in this organization' },
+              ]);
+            }
+          }
+          if (patch.status === 'inactive' && current.isDefault === true && patch.isDefault === undefined) {
+            patch.isDefault = false;
+          }
+          if (patch.isDefault === true && (patch.status ?? current.status) !== 'active') {
+            throw validationFailed('Only an active warehouse can be a default', [
+              { field: 'isDefault', message: 'default warehouse must be active' },
+            ]);
+          }
           if (typeof deps.capabilityService?.assertWarehousePatchAllowed === 'function') {
             await deps.capabilityService.assertWarehousePatchAllowed(organizationId, current, patch);
           }
@@ -235,6 +277,9 @@ function createLocationsService(deps) {
           if (patch.status === 'active' && current.status === 'inactive') {
             const currentUsage = await store.countActiveWarehouses(organizationId);
             await assertCreationLimit(evaluateEntitlement, organizationId, 'warehouses', currentUsage);
+          }
+          if (patch.isDefault === true) {
+            await store.clearWarehouseDefault(session, organizationId, nextBranchId, warehouseId);
           }
           const updated = await store.updateWarehouse(session, organizationId, warehouseId, {
             ...patch,

@@ -15,15 +15,18 @@ export interface BranchRecord {
   invoicePrefix: string;
   status: 'active' | 'inactive' | string;
   version: number;
+  isDefault?: boolean;
 }
 
 export interface WarehouseRecord {
   id: string;
   organizationId: string;
+  branchId?: string | null;
   name: string;
   code: string;
   status: 'active' | 'inactive' | string;
   version: number;
+  isDefault?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -93,6 +96,7 @@ export class BranchesWarehousesApi {
     name: string;
     invoicePrefix: string;
     code?: string;
+    isDefault?: boolean;
   }): Observable<BranchRecord> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
@@ -121,6 +125,7 @@ export class BranchesWarehousesApi {
       invoicePrefix?: string;
       code?: string;
       status?: string;
+      isDefault?: boolean;
     },
   ): Observable<BranchRecord> {
     return this.authApi.ensureCsrf().pipe(
@@ -183,9 +188,15 @@ export class BranchesWarehousesApi {
     });
   }
 
-  listWarehouseOptions(selectedIds: readonly string[] = []): Observable<WarehouseRecord[]> {
+  listWarehouseOptions(
+    selectedIds: readonly string[] = [],
+    branchId = '',
+  ): Observable<WarehouseRecord[]> {
     const normalizedIds = [...new Set(selectedIds.map((id) => id.trim()).filter(Boolean))].sort();
-    const params = normalizedIds.length > 0 ? { selectedIds: normalizedIds.join(',') } : {};
+    const params = {
+      ...(normalizedIds.length > 0 ? { selectedIds: normalizedIds.join(',') } : {}),
+      ...(branchId.trim() ? { branchId: branchId.trim() } : {}),
+    };
     return this.queryCache.fetch({
       key: this.queryCache.buildKey('warehouses:options', params),
       policy: 'reference',
@@ -218,7 +229,12 @@ export class BranchesWarehousesApi {
     });
   }
 
-  createWarehouse(payload: { name: string; code?: string }): Observable<WarehouseRecord> {
+  createWarehouse(payload: {
+    name: string;
+    code?: string;
+    branchId?: string | null;
+    isDefault?: boolean;
+  }): Observable<WarehouseRecord> {
     return this.authApi.ensureCsrf().pipe(
       switchMap(({ csrfToken }) =>
         this.http
@@ -245,6 +261,8 @@ export class BranchesWarehousesApi {
       name?: string;
       code?: string;
       status?: string;
+      branchId?: string | null;
+      isDefault?: boolean;
     },
   ): Observable<WarehouseRecord> {
     return this.authApi.ensureCsrf().pipe(

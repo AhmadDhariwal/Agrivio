@@ -12,6 +12,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatWarehouseOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
 import { ProductRecord } from '../../../catalog/models/catalog.models';
 
@@ -104,6 +106,7 @@ export const FINDING_CODE_METADATA: Record<string, FindingCodeMeta> = {
     UiAlertComponent,
     UiLoadingStateComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './reconciliation.page.html',
   styleUrl: './reconciliation.page.scss',
@@ -137,6 +140,10 @@ export class ReconciliationPage {
   readonly productMap = signal<Map<string, ProductRecord>>(new Map());
   readonly warehouseMap = signal<Map<string, WarehouseRecord>>(new Map());
   readonly warehouseList = signal<WarehouseRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouseList().map((w) => formatWarehouseOption(w)),
+  );
 
   // Permissions & Capability Computeds
   readonly canView = computed(() => this.sessionStore.hasPermission('inventory.view'));
@@ -430,9 +437,18 @@ export class ReconciliationPage {
     this.page.set(1);
   }
 
-  onWarehouseChange(event: Event): void {
-    const val = (event.target as HTMLSelectElement).value;
-    this.warehouseFilter.set(val);
+  onWarehouseChange(eventOrVal: Event | string | null): void {
+    const val =
+      typeof eventOrVal === 'string'
+        ? eventOrVal
+        : eventOrVal && 'target' in eventOrVal
+          ? (eventOrVal.target as HTMLSelectElement).value
+          : '';
+    this.onWarehouseSelected(val);
+  }
+
+  onWarehouseSelected(val: string | null): void {
+    this.warehouseFilter.set(val || '');
     this.page.set(1);
   }
 

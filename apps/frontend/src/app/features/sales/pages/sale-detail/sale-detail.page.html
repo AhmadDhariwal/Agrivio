@@ -344,20 +344,13 @@
               for="sales-return-refund-account"
               [required]="fieldRequired(returnForm.controls.refundAccountId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="sales-return-refund-account"
-              class="ag-select"
               formControlName="refundAccountId"
-              data-testid="sales-return-refund-account"
-              [attr.aria-required]="fieldRequired(returnForm.controls.refundAccountId) ? 'true' : null"
-            >
-              <option value="">None</option>
-              @for (account of refundAccounts(); track account.id) {
-              <option [value]="account.id">
-                {{ account.name }} ({{ account.accountType }})
-              </option>
-              }
-            </select>
+              [options]="refundAccountOptions()"
+              placeholder="None"
+              [required]="fieldRequired(returnForm.controls.refundAccountId)"
+            />
           </div>
         </div>
 

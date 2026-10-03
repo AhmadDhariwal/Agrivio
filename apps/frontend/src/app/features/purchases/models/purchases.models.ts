@@ -67,6 +67,12 @@ export interface PurchaseRecord {
   cancelledAt?: string | null;
   cancelledBy?: string | null;
   cancellationReason?: string | null;
+  originalPurchaseId?: string | null;
+  replacementPurchaseId?: string | null;
+  correctionReason?: string | null;
+  correctedAt?: string | null;
+  correctedBy?: string | null;
+  correctionStatus?: 'corrected' | 'replacement' | 'cancelled' | null;
 }
 
 export interface PurchaseLineInput {
@@ -112,6 +118,20 @@ export interface PurchasePostInput {
 export interface PurchaseCancelInput {
   reason: string;
   expectedVersion: number;
+}
+
+export interface PurchaseCorrectInput {
+  expectedVersion: number;
+  correctionReason: string;
+  correctedPurchase: PurchaseDraftInput & {
+    payments?: PurchasePaymentInput[];
+  };
+}
+
+export interface PurchaseCorrectionResult {
+  originalPurchase: PurchaseRecord;
+  replacementPurchase: PurchaseRecord;
+  correctionStatus: 'corrected';
 }
 
 export interface PurchaseReturnLineInput {

@@ -39,7 +39,8 @@ function createHarness(status = 'active') {
     transactionRunner: createTransactionRunner(createMockTransactionSessionPort().port),
     resolveSubscriptionAccessState: async () => ({
       status,
-      accessLevel: status === 'suspended' ? 'billing' : 'operational',
+      accessLevel: status === null ? 'none' : status === 'suspended' ? 'billing' : 'operational',
+      operationalWriteAllowed: status === 'trial' || status === 'active' || status === 'grace',
     }),
   });
   return { capabilityService, auditStore };
@@ -66,7 +67,7 @@ describe('Billing capability controls', () => {
         defaultPolicy: { visible: true, editable: true },
         configurable: { visible: false, editable: false },
         platformEnforced: true,
-        subscriptionLabel: 'billing-access',
+        subscriptionLabel: 'billing-bootstrap',
       });
     }
     expect(controls.find((item) => item.key === 'billing.fields.notes')).toMatchObject({
@@ -114,6 +115,21 @@ describe('Billing capability controls', () => {
     expect(effective.operationalAllowed).toBe(false);
     expect(control(effective, 'billing').effectiveValue.enabled).toBe(true);
     expect(control(effective, 'billing.actions.submit').effectiveValue.allowed).toBe(true);
+  });
+
+  it('allows only Billing bootstrap controls when the subscription is missing', async () => {
+    const missing = createHarness(null);
+    const effective = await missing.capabilityService.resolveEffective('org-a', {
+      permissions: ['subscription.view', 'subscription.billing-evidence.submit'],
+    });
+    expect(effective.operationalAllowed).toBe(false);
+    expect(control(effective, 'billing').effectiveValue.enabled).toBe(true);
+    expect(control(effective, 'billing.fields.evidence').effectiveValue.editable).toBe(true);
+    expect(control(effective, 'billing.actions.submit').effectiveValue.allowed).toBe(true);
+    expect(control(effective, 'inventory.products').effectiveValue.enabled).toBe(false);
+    expect(control(effective, 'sales').effectiveValue.enabled).toBe(false);
+    expect(control(effective, 'purchases').effectiveValue.enabled).toBe(false);
+    expect(control(effective, 'reports').effectiveValue.enabled).toBe(false);
   });
 
   it('rejects attempts to hide required Billing inputs', async () => {

@@ -116,6 +116,74 @@
           </div>
           }
 
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Branch (optional)" for="warehouse-branch-create" />
+            <select id="warehouse-branch-create" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
+              <option value="">Select branch</option>
+              @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
+              }
+            </select>
+            <p class="field-helper">Transactions can use this warehouse with this branch, or standalone if none selected.</p>
+          </div>
+
+          <!-- Default Warehouse Toggle Card -->
+          <div class="preference-card">
+            <label class="preference-card__label" for="warehouse-default-create">
+              <span class="preference-card__checkbox-wrap">
+                <input
+                  type="checkbox"
+                  id="warehouse-default-create"
+                  class="preference-card__checkbox"
+                  formControlName="isDefault"
+                  data-testid="warehouse-default"
+                />
+              </span>
+              <span class="preference-card__content">
+                <span class="preference-card__title">Default warehouse for this branch</span>
+                <span class="preference-card__description">
+                  Automatically select this warehouse when transactions are created under this branch.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Default Reassignment Warning -->
+          @if (showDefaultReassignmentWarning()) {
+          <div
+            class="reassignment-callout"
+            role="alert"
+            aria-live="polite"
+            data-testid="warehouse-reassignment-warning"
+          >
+            <div class="reassignment-callout__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div class="reassignment-callout__content">
+              <p class="reassignment-callout__text">
+                <strong>Default will be reassigned.</strong> Saving will unset
+                "<strong>{{ existingDefaultName() }}</strong>" as the default warehouse. Only one
+                warehouse can be the default at a time.
+              </p>
+            </div>
+          </div>
+          }
+
           <!-- Info Callout -->
           <div class="info-callout">
             <div class="info-callout__icon">
@@ -292,6 +360,74 @@
             <p class="field-error" role="alert">{{ codeError }}</p>
             }
             <p class="field-helper">A short code to help identify this warehouse.</p>
+          </div>
+          }
+
+          <div class="ag-field">
+            <agrivio-ui-field-label label="Branch (optional)" for="warehouse-branch-edit" />
+            <select id="warehouse-branch-edit" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
+              <option value="">Select branch</option>
+              @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
+              }
+            </select>
+            <p class="field-helper">Transactions can use this warehouse with this branch, or standalone if none selected.</p>
+          </div>
+
+          <!-- Default Warehouse Toggle Card -->
+          <div class="preference-card">
+            <label class="preference-card__label" for="warehouse-default-edit">
+              <span class="preference-card__checkbox-wrap">
+                <input
+                  type="checkbox"
+                  id="warehouse-default-edit"
+                  class="preference-card__checkbox"
+                  formControlName="isDefault"
+                  data-testid="warehouse-default"
+                />
+              </span>
+              <span class="preference-card__content">
+                <span class="preference-card__title">Default warehouse for this branch</span>
+                <span class="preference-card__description">
+                  Automatically select this warehouse when transactions are created under this branch.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Default Reassignment Warning -->
+          @if (showDefaultReassignmentWarning()) {
+          <div
+            class="reassignment-callout"
+            role="alert"
+            aria-live="polite"
+            data-testid="warehouse-reassignment-warning"
+          >
+            <div class="reassignment-callout__icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <div class="reassignment-callout__content">
+              <p class="reassignment-callout__text">
+                <strong>Default will be reassigned.</strong> Saving will unset
+                "<strong>{{ existingDefaultName() }}</strong>" as the default warehouse. Only one
+                warehouse can be the default at a time.
+              </p>
+            </div>
           </div>
           }
 

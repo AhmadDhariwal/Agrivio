@@ -15,6 +15,7 @@ import { createImportsController } from './controllers/imports.controller.js';
 import { permissionsForMembershipRole } from '../identity/role-permissions.js';
 import { createRequirePermissionMiddleware } from '../identity/permission.middleware.js';
 import { createCorsMiddleware } from '../identity/auth.middleware.js';
+import { evaluateNumericLimit } from '../subscriptions/entitlement.js';
 import {
   collectSourceFiles,
   extractImportSpecifiers,
@@ -36,26 +37,37 @@ function allowEntitlement() {
   return { allowed: true };
 }
 
-function buildModules() {
+function buildModules(options = {}) {
+  const planLimits = options.planLimits ?? {};
+  const evaluateEntitlement = async (_organizationId, entitlementOptions = {}) => {
+    if (entitlementOptions.limitKey) {
+      return evaluateNumericLimit(
+        { limits: planLimits },
+        entitlementOptions.limitKey,
+        entitlementOptions.currentUsage,
+      );
+    }
+    return allowEntitlement();
+  };
   const catalog = createCatalogModule({
     persistence: 'memory',
-    evaluateEntitlement: async () => allowEntitlement(),
+    evaluateEntitlement,
   });
   const ledgers = createLedgersModule({ persistence: 'memory' });
   const customers = createCustomersModule({
     persistence: 'memory',
-    evaluateEntitlement: async () => allowEntitlement(),
+    evaluateEntitlement,
     ledgersService: ledgers.ledgersService,
   });
   const suppliers = createSuppliersModule({
     persistence: 'memory',
-    evaluateEntitlement: async () => allowEntitlement(),
+    evaluateEntitlement,
     ledgersService: ledgers.ledgersService,
   });
   const accounts = createAccountsModule({ persistence: 'memory' });
   const locations = createLocationsModule({
     persistence: 'memory',
-    evaluateEntitlement: async () => allowEntitlement(),
+    evaluateEntitlement,
   });
   const inventory = createInventoryModule({
     persistence: 'memory',
@@ -75,6 +87,7 @@ function buildModules() {
     locationsService: locations.locationsService,
     canAccessWarehouse: () => true,
     resolvePlanEntitlements: async () => ({ imports: true }),
+    evaluateEntitlement,
   });
   return { catalog, customers, suppliers, accounts, locations, inventory, ledgers, imports };
 }
@@ -268,6 +281,113 @@ describe('F08 P3 Excel imports', () => {
       { name: 'Kissan Traders' },
     ]);
     expect(supplierPreview.preview.preview.invalidRows).toBe(1);
+  });
+
+  it('preflights product import quota inside the batch transaction', async () => {
+    const { catalog, imports } = buildModules({ planLimits: { products: 2 } });
+    const category = await catalog.catalogService.createCategory(
+      'org-1',
+      { name: 'General', productClass: 'general' },
+      actor,
+    );
+    await catalog.catalogService.createProduct(
+      'org-1',
+      {
+        sku: 'EXISTING-1',
+        name: 'Existing',
+        categoryId: category.id,
+        trackingMode: 'none',
+        baseUnitCode: 'KG',
+        measurementDimension: 'mass',
+      },
+      actor,
+    );
+    const row = (sku) => ({
+      sku,
+      name: sku,
+      categoryName: 'General',
+      trackingMode: 'none',
+      baseUnitCode: 'KG',
+      measurementDimension: 'mass',
+    });
+
+    const over = await previewExecute(imports.importsService, 'products', [
+      row('NEW-1'),
+      row('NEW-2'),
+    ]);
+    await imports.importsService.confirmJob('org-1', over.preview.id, actor);
+    await expect(
+      imports.importsService.executeJob('org-1', over.preview.id, actor, 'products-over-limit'),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(await catalog.catalogService.countProducts('org-1')).toBe(1);
+
+    const exact = await previewExecute(imports.importsService, 'products', [row('NEW-3')]);
+    await imports.importsService.confirmJob('org-1', exact.preview.id, actor);
+    await imports.importsService.executeJob(
+      'org-1',
+      exact.preview.id,
+      actor,
+      'products-exact-limit',
+    );
+    expect(await catalog.catalogService.countProducts('org-1')).toBe(2);
+  });
+
+  it('preflights customer import quota without committing a partial batch', async () => {
+    const { customers, imports } = buildModules({ planLimits: { customers: 2 } });
+    await customers.customersService.createCustomer(
+      'org-1',
+      { name: 'Existing Customer', customerType: 'farmer' },
+      actor,
+    );
+
+    const over = await previewExecute(imports.importsService, 'customers', [
+      { name: 'Customer Two', customerType: 'farmer' },
+      { name: 'Customer Three', customerType: 'business' },
+    ]);
+    await imports.importsService.confirmJob('org-1', over.preview.id, actor);
+    await expect(
+      imports.importsService.executeJob('org-1', over.preview.id, actor, 'customers-over-limit'),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(await customers.customersService.countCustomers('org-1')).toBe(1);
+
+    const exact = await previewExecute(imports.importsService, 'customers', [
+      { name: 'Customer Two', customerType: 'farmer' },
+    ]);
+    await imports.importsService.confirmJob('org-1', exact.preview.id, actor);
+    await imports.importsService.executeJob(
+      'org-1',
+      exact.preview.id,
+      actor,
+      'customers-exact-limit',
+    );
+    expect(await customers.customersService.countCustomers('org-1')).toBe(2);
+  });
+
+  it('preflights supplier import quota without committing a partial batch', async () => {
+    const { suppliers, imports } = buildModules({ planLimits: { suppliers: 2 } });
+    await suppliers.suppliersService.createSupplier('org-1', { name: 'Existing Supplier' }, actor);
+
+    const over = await previewExecute(imports.importsService, 'suppliers', [
+      { name: 'Supplier Two' },
+      { name: 'Supplier Three' },
+    ]);
+    await imports.importsService.confirmJob('org-1', over.preview.id, actor);
+    await expect(
+      imports.importsService.executeJob('org-1', over.preview.id, actor, 'suppliers-over-limit'),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(await suppliers.suppliersService.countSuppliers('org-1')).toBe(1);
+
+    const exact = await previewExecute(imports.importsService, 'suppliers', [
+      { name: 'Supplier Two' },
+    ]);
+    await imports.importsService.confirmJob('org-1', exact.preview.id, actor);
+    await imports.importsService.executeJob(
+      'org-1',
+      exact.preview.id,
+      actor,
+      'suppliers-exact-limit',
+    );
+    expect(await suppliers.suppliersService.countSuppliers('org-1')).toBe(2);
   });
 
   it('reports exact row and field for an invalid value', async () => {
@@ -506,6 +626,31 @@ describe('F08 P3 Excel imports', () => {
     expect(fulfilled.length).toBeGreaterThanOrEqual(1);
     const created = fulfilled.map((item) => item.value.data.result?.createdCount ?? 0);
     expect(created.some((count) => count === 1 || itemReplay(item))).toBeTruthy();
+  });
+
+  it('serializes distinct same-resource import jobs per organization', async () => {
+    const { imports } = buildModules({ planLimits: { suppliers: 50 } });
+    const first = await previewExecute(imports.importsService, 'suppliers', [
+      { name: 'First Concurrent Supplier' },
+    ]);
+    const second = await previewExecute(imports.importsService, 'suppliers', [
+      { name: 'Second Concurrent Supplier' },
+    ]);
+    await imports.importsService.confirmJob('org-1', first.preview.id, actor);
+    await imports.importsService.confirmJob('org-1', second.preview.id, actor);
+    await imports.store.claimExecute('org-1', first.preview.id);
+
+    await expect(
+      imports.importsService.executeJob(
+        'org-1',
+        second.preview.id,
+        actor,
+        'second-concurrent-supplier-import',
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'Another import of this type is already executing for this organization',
+    });
   });
 
   it('rejects cross-org product references', async () => {

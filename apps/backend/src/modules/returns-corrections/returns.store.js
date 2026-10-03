@@ -90,9 +90,9 @@ function createMongooseReturnsStore() {
         .exec();
     },
 
-    async deleteReturnIfDraft(session, organizationId, id) {
+    async deleteReturnIfDraft(session, organizationId, id, expectedVersion) {
       const result = await ReturnModel.deleteOne(
-        { _id: id, organizationId, status: 'draft' },
+        { _id: id, organizationId, status: 'draft', version: expectedVersion },
         withSession(session),
       );
       return result.deletedCount === 1;
@@ -166,14 +166,14 @@ function createMongooseReturnsStore() {
       return query.lean().exec();
     },
 
-    async listPostedReturnsByPurchase(organizationId, purchaseId) {
-      return ReturnModel.find({
+    async listPostedReturnsByPurchase(organizationId, purchaseId, session) {
+      const query = ReturnModel.find({
         organizationId,
         purchaseId,
         status: 'posted',
-      })
-        .lean()
-        .exec();
+      });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async sumPostedReturnedQuantityByPurchaseLine(organizationId, purchaseId, originalLineIndex) {
@@ -327,9 +327,13 @@ function createInMemoryReturnsStore() {
       return { ...next, lines: next.lines.map((line) => ({ ...line })) };
     },
 
-    async deleteReturnIfDraft(_session, organizationId, id) {
+    async deleteReturnIfDraft(_session, organizationId, id, expectedVersion) {
       const current = await this.findReturnById(organizationId, id);
-      if (current === null || current.status !== 'draft') {
+      if (
+        current === null ||
+        current.status !== 'draft' ||
+        Number(current.version) !== Number(expectedVersion)
+      ) {
         return false;
       }
       returns.delete(id);

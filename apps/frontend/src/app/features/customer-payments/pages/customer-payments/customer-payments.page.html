@@ -96,6 +96,22 @@
             </div>
           }
 
+          <!-- Customer Filter Dropdown -->
+          <div class="customer-filter" data-testid="customer-payments-customer-filter">
+            <agrivio-ui-searchable-dropdown
+              [options]="customerOptions()"
+              [value]="pendingCustomerId()"
+              [selectedLabel]="pendingCustomerId() ? selectedCustomerDisplayLabel() : ''"
+              [serverSearch]="true"
+              placeholder="Filter by customer…"
+              ariaLabel="Filter by customer"
+              (searchChange)="onCustomerSearch($event)"
+              (valueChange)="onCustomerChange($event)"
+              (openChange)="onCustomerDropdownOpenChange($event)"
+              data-testid="customer-payments-customer-dropdown"
+            />
+          </div>
+
           <!-- Date Filter Picker with Mode Toggle -->
           @if (showPaymentDateFilter()) {
             <div class="date-filter-group">
@@ -253,6 +269,20 @@
           </div>
         }
 
+        <!-- Mobile Customer Filter -->
+        <div class="customer-filter customer-filter--mobile">
+          <agrivio-ui-searchable-dropdown
+            [options]="customerOptions()"
+            [value]="pendingCustomerId()"
+            [selectedLabel]="pendingCustomerId() ? selectedCustomerDisplayLabel() : ''"
+            [serverSearch]="true"
+            placeholder="Filter by customer…"
+            ariaLabel="Filter by customer"
+            (searchChange)="onCustomerSearch($event)"
+            (valueChange)="onCustomerChange($event)"
+          />
+        </div>
+
         @if (showPaymentDateFilter()) {
           <div class="toolbar__mobile-row">
             <div class="date-mode-toggle date-mode-toggle--mobile" role="group" aria-label="Date filter mode">
@@ -336,9 +366,19 @@
       <div class="empty-container" data-testid="customer-payments-empty">
         @if (hasActiveFilters()) {
           <agrivio-ui-empty-state
-            title="No payments match your filters"
-            message="Try adjusting your search criteria or date filter."
+            title="No customer payments match your filters"
+            message="Try adjusting your search criteria, customer, or date filter."
           />
+          <div class="empty-filter-action">
+            <button
+              type="button"
+              class="ag-btn ag-btn--ghost empty-clear-btn"
+              (click)="clearFilters()"
+              data-testid="customer-payments-empty-clear"
+            >
+              Clear filters
+            </button>
+          </div>
         } @else {
           <agrivio-ui-empty-state
             title="No customer payments yet"
@@ -352,22 +392,28 @@
         <table class="prod-table" data-testid="customer-payments-table">
           <colgroup>
             <col class="col-date" />
+            <col class="col-customer" />
             <col class="col-mode" />
+            <col class="col-applied-to" />
             @if (canViewField('notes')) {
               <col class="col-notes" />
             }
             <col class="col-amount" />
             <col class="col-status" />
+            <col class="col-actions" />
           </colgroup>
           <thead>
             <tr>
               <th scope="col" class="prod-table__th">Payment Date</th>
-              <th scope="col" class="prod-table__th">Allocation Mode</th>
+              <th scope="col" class="prod-table__th">Customer</th>
+              <th scope="col" class="prod-table__th">Mode</th>
+              <th scope="col" class="prod-table__th">Applied To</th>
               @if (canViewField('notes')) {
                 <th scope="col" class="prod-table__th">Notes</th>
               }
               <th scope="col" class="prod-table__th text-right">Amount</th>
               <th scope="col" class="prod-table__th">Status</th>
+              <th scope="col" class="prod-table__th text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -385,9 +431,31 @@
                       </svg>
                     </div>
                     <div class="product-cell__meta">
-                      <span class="tabular-num text-date">{{ item.paymentDate }}</span>
+                      <span class="tabular-num text-date">{{ item.paymentDate | agDate }}</span>
                     </div>
                   </div>
+                </td>
+
+                <!-- Customer Name -->
+                <td class="prod-table__td customer-cell" data-testid="payment-customer">
+                  @if (item.customer) {
+                    @if (canViewCustomers()) {
+                      <a
+                        class="customer-cell__name customer-cell__link"
+                        [routerLink]="['/app/customers', item.customer.id]"
+                        data-testid="customer-profile-link"
+                      >
+                        {{ item.customer.name }}
+                      </a>
+                    } @else {
+                      <span class="customer-cell__name">{{ item.customer.name }}</span>
+                    }
+                    @if (item.customer.phone) {
+                      <span class="customer-cell__phone text-muted">{{ item.customer.phone }}</span>
+                    }
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
                 </td>
 
                 <!-- Allocation Mode Chip -->
@@ -397,15 +465,24 @@
                   </span>
                 </td>
 
+                <!-- Applied To Chip -->
+                <td class="prod-table__td cell-applied-to" data-testid="payment-applied-to">
+                  @if (formatAppliedTo(item.appliedTo); as label) {
+                    <span class="applied-to-chip applied-to-chip--{{ item.appliedTo }}">{{ label }}</span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+
                 <!-- Notes with Truncation -->
                 @if (canViewField('notes')) {
-                  <td class="prod-table__td prod-table__td--notes" data-testid="payment-notes" [title]="item.notes || ''">
-                    <span class="notes-text text-muted">{{ item.notes || '—' }}</span>
+                  <td class="prod-table__td prod-table__td--notes cell-notes" data-testid="payment-notes" [title]="item.notes || ''">
+                    <span class="notes-text text-muted" [title]="item.notes || ''">{{ item.notes || '—' }}</span>
                   </td>
                 }
 
                 <!-- Amount (Right-aligned, clean tabular price) -->
-                <td class="prod-table__td text-right" data-testid="payment-amount">
+                <td class="prod-table__td text-right cell-amount" data-testid="payment-amount">
                   <span class="tabular-num price-text">{{ formatCurrency(item.amount) }}</span>
                 </td>
 
@@ -419,6 +496,59 @@
                     <span class="status-indicator__dot"></span>
                     {{ item.status === 'posted' ? 'Posted' : item.status }}
                   </span>
+                </td>
+
+                <!-- Row Actions -->
+                <td class="prod-table__td text-right cell-actions" data-testid="payment-row-actions">
+                  <div class="row-actions-wrap">
+                    <button
+                      type="button"
+                      class="ag-btn ag-btn--ghost ag-btn--xs row-action-btn--view"
+                      (click)="openDetailDialog(item)"
+                      title="View payment details"
+                      data-testid="customer-payment-view-btn"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                      <span>View</span>
+                    </button>
+
+                    @if (isCorrectable(item) && canCorrect()) {
+                      <button
+                        type="button"
+                        class="ag-btn ag-btn--ghost ag-btn--xs btn-action-reverse"
+                        (click)="openCorrectionDialog(item, 'reverse')"
+                        title="Reverse payment"
+                        data-testid="customer-payment-reverse-btn"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <polyline points="1 4 1 10 7 10"></polyline>
+                          <path d="M3.51 15a9 9 0 1 0 .49-3.36"></path>
+                        </svg>
+                        <span>Reverse</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="ag-btn ag-btn--ghost ag-btn--xs btn-action-correct"
+                        (click)="openCorrectionDialog(item, 'correct')"
+                        title="Correct payment"
+                        data-testid="customer-payment-correct-btn"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        <span>Correct</span>
+                      </button>
+                    } @else if (item.correctionOfId) {
+                      <span class="reversal-badge" title="Immutable reversal record" data-testid="reversal-badge">Reversal</span>
+                    } @else if (item.correctionStatus || item.replacementPaymentId) {
+                      <span class="corrected-badge" title="Payment correction status" data-testid="corrected-badge">{{ item.correctionStatus === 'reversed' ? 'Reversed' : 'Corrected' }}</span>
+                    }
+                  </div>
                 </td>
               </tr>
             }
@@ -439,14 +569,36 @@
                     <line x1="8" y1="2" x2="8" y2="6"></line>
                   </svg>
                 </div>
-                <span class="payment-card__date tabular-num">{{ item.paymentDate }}</span>
+                <span class="payment-card__date tabular-num">{{ item.paymentDate | agDate }}</span>
               </div>
               <span class="payment-card__amount tabular-num price-text">{{ formatCurrency(item.amount) }}</span>
             </div>
 
             <div class="payment-card__body">
-              <div class="payment-card__mode">
+              <!-- Customer -->
+              @if (item.customer) {
+                <div class="payment-card__customer">
+                  @if (canViewCustomers()) {
+                    <a
+                      class="payment-card__customer-name payment-card__customer-link"
+                      [routerLink]="['/app/customers', item.customer.id]"
+                      data-testid="customer-profile-mobile-link"
+                    >
+                      {{ item.customer.name }}
+                    </a>
+                  } @else {
+                    <span class="payment-card__customer-name">{{ item.customer.name }}</span>
+                  }
+                  @if (item.customer.phone) {
+                    <span class="payment-card__customer-phone text-muted">{{ item.customer.phone }}</span>
+                  }
+                </div>
+              }
+              <div class="payment-card__chips">
                 <span class="tracking-chip tracking-chip--sm">{{ formatMode(item.allocationMode) }}</span>
+                @if (formatAppliedTo(item.appliedTo); as label) {
+                  <span class="applied-to-chip applied-to-chip--{{ item.appliedTo }} applied-to-chip--sm">{{ label }}</span>
+                }
               </div>
               @if (canViewField('notes') && item.notes) {
                 <p class="payment-card__notes">{{ item.notes }}</p>
@@ -462,6 +614,39 @@
                 <span class="status-indicator__dot"></span>
                 {{ item.status === 'posted' ? 'Posted' : item.status }}
               </span>
+
+              <div class="card-actions-wrap">
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--ghost ag-btn--xs"
+                  (click)="openDetailDialog(item)"
+                  data-testid="customer-payment-mobile-view-btn"
+                >
+                  View
+                </button>
+                @if (isCorrectable(item) && canCorrect()) {
+                  <button
+                    type="button"
+                    class="ag-btn ag-btn--ghost ag-btn--xs btn-action-reverse"
+                    (click)="openCorrectionDialog(item, 'reverse')"
+                    data-testid="customer-payment-mobile-reverse-btn"
+                  >
+                    Reverse
+                  </button>
+                  <button
+                    type="button"
+                    class="ag-btn ag-btn--ghost ag-btn--xs btn-action-correct"
+                    (click)="openCorrectionDialog(item, 'correct')"
+                    data-testid="customer-payment-mobile-correct-btn"
+                  >
+                    Correct
+                  </button>
+                } @else if (item.correctionOfId) {
+                  <span class="reversal-badge">Reversal</span>
+                } @else if (item.correctionStatus || item.replacementPaymentId) {
+                  <span class="corrected-badge">{{ item.correctionStatus === 'reversed' ? 'Reversed' : 'Corrected' }}</span>
+                }
+              </div>
             </div>
           </article>
         }
@@ -478,4 +663,27 @@
       />
     }
   }
+
+  <!-- Payment Detail Dialog -->
+  <agrivio-payment-detail-dialog
+    [open]="detailDialogOpen()"
+    [payment]="detailTarget()"
+    [canCorrect]="canCorrect()"
+    (reverseClicked)="onDetailReverse($event)"
+    (correctClicked)="onDetailCorrect($event)"
+    (dismissed)="closeDetailDialog()"
+  />
+
+  <!-- Payment Correction / Reversal Dialog -->
+  <agrivio-payment-correction-dialog
+    [open]="correctionDialogOpen()"
+    [payment]="correctionTarget()"
+    [initialMode]="correctionInitialMode()"
+    [submitting]="correctionSubmitting()"
+    [errorMessage]="correctionError()"
+    [accountOptions]="correctionAccountOptions()"
+    [allocationTargets]="correctionAllocationTargets()"
+    (confirmed)="onCorrectionConfirmed($event)"
+    (dismissed)="closeCorrectionDialog()"
+  />
 </div>

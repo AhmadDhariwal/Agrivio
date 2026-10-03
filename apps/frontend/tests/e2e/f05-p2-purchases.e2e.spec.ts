@@ -1,6 +1,6 @@
 import { API, activationTokenFromUrl } from './e2e-origins';
-import { login, enterPlatformWorkspace } from './e2e-auth-helper';
-import { expect, test, type Page } from '@playwright/test';
+import { login, enterPlatformWorkspace, seedStarterPlan } from './e2e-auth-helper';
+import { expect, test } from '@playwright/test';
 
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
@@ -29,15 +29,16 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -116,8 +117,12 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     await page.getByTestId('purchase-warehouse').selectOption({ label: 'P2 Receive' });
     await page.getByTestId('purchase-supplier').selectOption({ label: 'P2 Supplier' });
     await page.getByTestId('purchase-date').fill('2026-08-11');
-    await page.getByTestId('purchase-line-product').selectOption({ label: 'P2 Urea (batch_expiry)' });
-    await expect(page.getByTestId('purchase-line-packaging').locator('option', { hasText: '50 KG' })).toHaveCount(1, {
+    await page
+      .getByTestId('purchase-line-product')
+      .selectOption({ label: 'P2 Urea (batch_expiry)' });
+    await expect(
+      page.getByTestId('purchase-line-packaging').locator('option', { hasText: '50 KG' }),
+    ).toHaveCount(1, {
       timeout: 10000,
     });
     await page.getByTestId('purchase-line-packaging').selectOption({ label: '50 KG (×50)' });
@@ -157,7 +162,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
 
     const paymentAccount0 = paymentAccounts.first();
     await expect(paymentAccount0).toBeVisible();
-    const cashOption = paymentAccount0.locator('option', { hasText: 'P2 Cash' });
+    const cashOption = paymentAccount0.locator('option', { hasText: /^P2 Cash$/ });
     await expect(cashOption).toHaveCount(1);
     const cashValue = await cashOption.getAttribute('value');
     expect(cashValue).toBeTruthy();
@@ -176,7 +181,7 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
     }
     const paymentAccount1 = paymentAccounts.nth(1);
     await expect(paymentAccount1).toBeVisible();
-    const bankOption = paymentAccount1.locator('option', { hasText: 'P2 Bank' });
+    const bankOption = paymentAccount1.locator('option', { hasText: /^P2 Bank$/ });
     await expect(bankOption).toHaveCount(1);
     const bankValue = await bankOption.getAttribute('value');
     expect(bankValue).toBeTruthy();
@@ -212,12 +217,16 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
 
     await page.getByTestId('nav-inventory').click();
     await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
-    await expect(page.getByTestId('movement-row').filter({ hasText: 'purchase' }).first()).toBeVisible();
+    await expect(
+      page.getByTestId('movement-row').filter({ hasText: 'purchase' }).first(),
+    ).toBeVisible();
 
     const supplierLedger = await page.request.get(`${API}/api/v1/suppliers`);
     expect(supplierLedger.status()).toBe(200);
     const suppliersBody = await supplierLedger.json();
-    const supplierList = Array.isArray(suppliersBody.data) ? suppliersBody.data : (suppliersBody.data?.items ?? []);
+    const supplierList = Array.isArray(suppliersBody.data)
+      ? suppliersBody.data
+      : (suppliersBody.data?.items ?? []);
     const supplier = supplierList.find((item: { name: string }) => item.name === 'P2 Supplier');
     expect(supplier.derivedBalances.payable.amount).toBe('50.00');
 
@@ -240,28 +249,8 @@ test.describe('F05 P2 purchase posting vertical slice', () => {
 
     await page.getByTestId('nav-purchases').click();
     await expect(page.getByTestId('purchases-list')).toContainText('Posted');
-    await page.getByTestId('purchase-row').first().getByRole('link').click();
+    await page.getByTestId('purchase-row').first().getByRole('link').first().click();
     await expect(page.getByTestId('purchase-posted-banner')).toBeVisible();
     await expect(page.getByTestId('purchase-detail-warehouse')).toContainText('P2 Receive');
   });
 });
-
-async function seedStarterPlan(request: import('@playwright/test').APIRequestContext) {
-  const csrf = await request.post(`${API}/api/v1/auth/csrf`);
-  const csrfBody = await csrf.json();
-  const token = csrfBody.data.csrfToken as string;
-  const plan = await request.post(`${API}/api/v1/platform/subscription-plans`, {
-    headers: {
-      'X-CSRF-Token': token,
-      'X-Platform-Actor': 'super-admin',
-    },
-    data: {
-      planCode: 'Starter',
-      activate: true,
-      monthlyPriceMinorUnits: 1000,
-      limits: { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
-    },
-  });
-  expect([200, 201]).toContain(plan.status());
-}
-

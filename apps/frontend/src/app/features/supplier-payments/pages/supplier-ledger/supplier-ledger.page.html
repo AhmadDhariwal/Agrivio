@@ -72,48 +72,24 @@
     <!-- Supplier Selector Card -->
     <section class="supplier-select-card" aria-label="Supplier selection">
       <form class="supplier-selector-form" [formGroup]="form" data-testid="ledger-supplier-form">
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label" for="searchSupplierInput">Find supplier</label>
-            <div class="input-with-icon">
-              <svg
-                class="field-icon"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input
-                id="searchSupplierInput"
-                type="search"
-                class="ag-input field-input"
-                placeholder="Search by supplier name…"
-                (input)="onSupplierSearch($event)"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="supplierSelect">Select supplier</label>
-            <select
-              id="supplierSelect"
-              class="ag-select field-select"
-              formControlName="supplierId"
-              data-testid="ledger-supplier-select"
-            >
-              <option value="">-- Choose a supplier --</option>
-              @for (supplier of suppliers(); track supplier.id) {
-                <option [value]="supplier.id">{{ supplier.name }}</option>
-              }
-            </select>
-          </div>
+        <input
+          id="searchSupplierInput"
+          type="search"
+          style="display: none;"
+          (input)="onSupplierSearch($event)"
+        />
+        <div class="form-group">
+          <label class="form-label" for="supplierSelect">Select supplier</label>
+          <agrivio-ui-searchable-dropdown
+            id="supplierSelect"
+            testId="ledger-supplier-select"
+            formControlName="supplierId"
+            [options]="supplierOptions()"
+            [serverSearch]="true"
+            [selectedLabel]="supplierSelectedLabel()"
+            (searchChange)="onSupplierSearch($event)"
+            placeholder="-- Choose a supplier --"
+          />
         </div>
       </form>
     </section>
@@ -208,6 +184,20 @@
               </div>
             }
 
+            @if (canViewField('netPayable')) {
+            <div class="kpi-card">
+              <div class="kpi-card__icon kpi-card__icon--blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19V5"></path><path d="M4 19h16"></path><path d="m7 15 4-4 3 2 4-6"></path>
+                </svg>
+              </div>
+              <div class="kpi-card__content">
+                <span class="kpi-card__label">Net Payable</span>
+                <span class="kpi-card__value" data-testid="supplier-ledger-net-payable">PKR {{ recon.netPayable.amount }}</span>
+              </div>
+            </div>
+            }
+
             <!-- Reconciliation Status Card -->
             @if (canViewField('reconciliationStatus')) {
               <div class="kpi-card">
@@ -281,6 +271,9 @@
                       <span class="finding-desc">
                         (Expected: {{ finding.expectedMinorUnits }}, Actual: {{ finding.actualMinorUnits }})
                       </span>
+                    }
+                    @if (finding.message) {
+                      <span class="finding-desc">{{ finding.message }}</span>
                     }
                   </li>
                 }
@@ -403,8 +396,8 @@
                     <!-- Date -->
                     @if (canViewField('date')) {
                       <td class="cell-date">
-                        {{ item.postedAt | date: 'mediumDate' }}
-                        <span class="cell-subtext">{{ item.postedAt | date: 'shortTime' }}</span>
+                        {{ item.postedAt | agDate }}
+                        <span class="cell-subtext">{{ item.postedAt | agTime }}</span>
                       </td>
                     }
 
@@ -492,8 +485,8 @@
                 <div class="mobile-ledger-card__header">
                   @if (canViewField('date')) {
                     <div class="mobile-ledger-card__date-group">
-                      <span class="mobile-ledger-card__date">{{ item.postedAt | date: 'mediumDate' }}</span>
-                      <span class="mobile-ledger-card__time">{{ item.postedAt | date: 'shortTime' }}</span>
+                      <span class="mobile-ledger-card__date">{{ item.postedAt | agDate }}</span>
+                      <span class="mobile-ledger-card__time">{{ item.postedAt | agTime }}</span>
                     </div>
                   }
                   @if (canViewField('entryType')) {

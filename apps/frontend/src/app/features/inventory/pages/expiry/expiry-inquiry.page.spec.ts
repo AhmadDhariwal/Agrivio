@@ -334,6 +334,52 @@ describe('ExpiryInquiryPage', () => {
     expect(overdueDays?.isOverdue).toBe(true);
     expect(overdueDays?.text).toContain('29 days overdue');
   });
+
+  it('initializes filters from route query parameters and filters items', async () => {
+    const { ActivatedRoute, convertToParamMap } = await import('@angular/router');
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ExpiryInquiryPage],
+      providers: [
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap({
+                search: 'LOT-CHL-NEAR-EXP',
+                productId: 'prod-1',
+                warehouseId: 'wh-1',
+                classification: 'upcoming',
+              }),
+            },
+            queryParamMap: of(
+              convertToParamMap({
+                search: 'LOT-CHL-NEAR-EXP',
+                productId: 'prod-1',
+                warehouseId: 'wh-1',
+                classification: 'upcoming',
+              }),
+            ),
+          },
+        },
+        { provide: InventoryApi, useValue: mockInventoryApi },
+        { provide: CatalogApi, useValue: mockCatalogApi },
+        { provide: BranchesWarehousesApi, useValue: mockLocationsApi },
+        { provide: AuthSessionStore, useValue: mockSessionStore },
+      ],
+    }).compileComponents();
+
+    const qpFixture = TestBed.createComponent(ExpiryInquiryPage);
+    const qpComp = qpFixture.componentInstance;
+    qpFixture.detectChanges();
+
+    expect(qpComp.search()).toBe('LOT-CHL-NEAR-EXP');
+    expect(qpComp.productFilter()).toBe('prod-1');
+    expect(qpComp.warehouseFilter()).toBe('wh-1');
+    expect(qpComp.classificationFilter()).toBe('upcoming');
+    expect(qpComp.filteredItems()).toHaveLength(1);
+    expect(qpComp.filteredItems()[0]?.batchNumber).toBe('LOT-CHL-NEAR-EXP');
+  });
 });
 
 describe('ExpiryInquiryPage — capability controls', () => {
@@ -383,4 +429,5 @@ describe('ExpiryInquiryPage — capability controls', () => {
     expect(comp.canViewMovements()).toBe(true);
   });
 });
+
 

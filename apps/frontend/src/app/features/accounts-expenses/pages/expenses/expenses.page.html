@@ -306,7 +306,7 @@
           <td class="expenses-table__td">
             <span class="badge-account">{{ accountName(item) }}</span>
           </td>
-          <td class="expenses-table__td">{{ item.expenseDate | date:'mediumDate' }}</td>
+          <td class="expenses-table__td expenses-table__td--date">{{ item.expenseDate | date:'mediumDate' }}</td>
           <td class="expenses-table__td expenses-table__td--amount">
             {{ item.amount.currency }} {{ item.amount.amount | number:'1.2-2' }}
           </td>

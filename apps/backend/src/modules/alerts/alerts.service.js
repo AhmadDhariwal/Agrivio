@@ -23,18 +23,66 @@ function toMoneyDto(amountMinorUnits) {
   };
 }
 
-function resolveTargetRoute(alertType) {
+function resolveTargetRoute(recordOrType) {
+  const alertType =
+    typeof recordOrType === 'string'
+      ? recordOrType
+      : String(recordOrType?.alertType ?? '');
+  const subjectKey =
+    typeof recordOrType === 'object' && recordOrType
+      ? String(recordOrType.subjectKey ?? '')
+      : '';
+
   switch (alertType) {
     case 'upcoming_expiry':
-    case 'expired_stock':
+    case 'expired_stock': {
+      if (typeof recordOrType === 'object' && recordOrType?.body) {
+        const batchMatch = String(recordOrType.body).match(/Batch\s+([^\s]+)/i);
+        if (batchMatch && batchMatch[1]) {
+          return `/app/inventory/expiry?search=${encodeURIComponent(batchMatch[1])}`;
+        }
+      }
+      if (subjectKey) {
+        if (subjectKey.includes(':')) {
+          const [productId, warehouseId] = subjectKey.split(':');
+          if (productId && warehouseId) {
+            return `/app/inventory/expiry?productId=${encodeURIComponent(productId)}&warehouseId=${encodeURIComponent(warehouseId)}`;
+          }
+        }
+        return `/app/inventory/expiry?search=${encodeURIComponent(subjectKey)}`;
+      }
       return '/app/inventory/expiry';
-    case 'low_stock':
-    case 'dead_stock':
+    }
+    case 'low_stock': {
+      if (subjectKey.includes('::')) {
+        const [productId, warehouseId] = subjectKey.split('::');
+        if (productId && warehouseId) {
+          return `/app/inventory/stock?productId=${encodeURIComponent(productId)}&warehouseId=${encodeURIComponent(warehouseId)}`;
+        }
+      }
+      if (subjectKey) {
+        return `/app/inventory/stock?productId=${encodeURIComponent(subjectKey)}`;
+      }
       return '/app/inventory/stock';
-    case 'customer_dues':
+    }
+    case 'dead_stock': {
+      if (subjectKey) {
+        return `/app/inventory/stock?productId=${encodeURIComponent(subjectKey)}`;
+      }
+      return '/app/inventory/stock';
+    }
+    case 'customer_dues': {
+      if (subjectKey) {
+        return `/app/customers/${encodeURIComponent(subjectKey)}`;
+      }
       return '/app/customers';
-    case 'supplier_dues':
+    }
+    case 'supplier_dues': {
+      if (subjectKey) {
+        return `/app/suppliers/${encodeURIComponent(subjectKey)}`;
+      }
       return '/app/suppliers';
+    }
     default:
       return '/app/alerts';
   }
@@ -53,7 +101,7 @@ function toNotificationDto(record, isRead = false) {
     body: String(record.body),
     subjectKey: String(record.subjectKey),
     fingerprint: String(record.fingerprint),
-    targetRoute: resolveTargetRoute(alertType),
+    targetRoute: resolveTargetRoute(record),
     isRead: Boolean(isRead),
     active: record.active !== false,
     activatedAt: toIso(record.activatedAt ?? record.createdAt),

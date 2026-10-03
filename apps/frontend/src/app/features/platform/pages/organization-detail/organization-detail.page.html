@@ -269,7 +269,24 @@
         }
       </div>
       } @else {
-      <p class="ag-muted">No subscription record associated with this organization.</p>
+      <div class="subscription-diagnostic" data-testid="subscription-unavailable-state">
+        <div class="grid-fields">
+          <div class="field-item">
+            <span class="field-label">Subscription Status</span>
+            <agrivio-ui-status-badge label="Unavailable" tone="warning" />
+          </div>
+        </div>
+        <div class="subscription-diagnostic__alert" data-testid="subscription-missing-warning">
+          <agrivio-ui-alert
+            tone="warning"
+            message="This organization does not have a subscription record."
+            role="status"
+          />
+          <p class="subscription-diagnostic__desc">
+            Operational modules remain restricted. Complete the approved subscription-repair procedure before approving billing.
+          </p>
+        </div>
+      </div>
       }
     </div>
   </section>

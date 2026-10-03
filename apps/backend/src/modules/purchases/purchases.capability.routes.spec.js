@@ -39,6 +39,7 @@ function serviceWith() {
     discardPurchaseDraft: vi.fn(async () => ({})),
     postPurchase: vi.fn(async () => ({ data: {} })),
     cancelPurchase: vi.fn(async () => ({ data: {} })),
+    correctPurchase: vi.fn(async () => ({ data: {} })),
   };
 }
 
@@ -107,6 +108,7 @@ const ENDPOINTS = [
   ['/api/v1/purchases/purchase-1', 'DELETE'],
   ['/api/v1/purchases/purchase-1/post', 'POST'],
   ['/api/v1/purchases/purchase-1/cancel', 'POST'],
+  ['/api/v1/purchases/purchase-1/correct', 'POST'],
 ];
 
 describe('Purchases capability route enforcement', () => {
@@ -132,6 +134,7 @@ describe('Purchases capability route enforcement', () => {
     ['discardDraft', '/api/v1/purchases/purchase-1', 'DELETE', 'discardPurchaseDraft'],
     ['post', '/api/v1/purchases/purchase-1/post', 'POST', 'postPurchase'],
     ['cancel', '/api/v1/purchases/purchase-1/cancel', 'POST', 'cancelPurchase'],
+    ['cancel', '/api/v1/purchases/purchase-1/correct', 'POST', 'correctPurchase'],
   ])('blocks %s independently', async (action, path, method, serviceMethod) => {
     const purchasesService = serviceWith();
     const assertAllowed = vi.fn(async (_organizationId, key) => {

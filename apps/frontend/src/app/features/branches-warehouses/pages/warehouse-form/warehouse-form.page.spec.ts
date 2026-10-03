@@ -11,6 +11,7 @@ describe('WarehouseFormPage', () => {
   const mockWarehouse: WarehouseRecord = {
     id: 'wh-1',
     organizationId: 'org-1',
+    branchId: 'branch-1',
     name: 'Central Distribution Hub (Multan)',
     code: 'WH-MLT-01',
     status: 'active',
@@ -40,6 +41,19 @@ describe('WarehouseFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getWarehouse: () => of(mockWarehouse),
+            listBranchOptions: () =>
+              of([
+                {
+                  id: 'branch-1',
+                  organizationId: 'org-1',
+                  name: 'Main Branch',
+                  code: '',
+                  invoicePrefix: 'MAIN',
+                  status: 'active',
+                  version: 1,
+                },
+              ]),
+            listWarehouseOptions: () => of([]),
             createWarehouse: createWarehouseSpy,
             updateWarehouse: updateWarehouseSpy,
           },
@@ -48,6 +62,8 @@ describe('WarehouseFormPage', () => {
           provide: AuthSessionStore,
           useValue: {
             hasPermission: () => true,
+            activeContext: () => null,
+            filterBranches: <T>(items: T[]) => items,
           },
         },
         {
@@ -104,6 +120,8 @@ describe('WarehouseFormPage', () => {
     comp.form.patchValue({
       name: 'Lahore Central Warehouse',
       code: 'LHR-CENTRAL',
+      branchId: 'branch-1',
+      isDefault: false,
     });
 
     comp.save();
@@ -111,6 +129,8 @@ describe('WarehouseFormPage', () => {
     expect(createWarehouseSpy).toHaveBeenCalledWith({
       name: 'Lahore Central Warehouse',
       code: 'LHR-CENTRAL',
+      branchId: 'branch-1',
+      isDefault: false,
     });
   });
 
@@ -173,13 +193,30 @@ describe('WarehouseFormPage', () => {
           provide: BranchesWarehousesApi,
           useValue: {
             getWarehouse: () => of(mockWarehouse),
+            listBranchOptions: () =>
+              of([
+                {
+                  id: 'branch-1',
+                  organizationId: 'org-1',
+                  name: 'Main Branch',
+                  code: '',
+                  invoicePrefix: 'MAIN',
+                  status: 'active',
+                  version: 1,
+                },
+              ]),
+            listWarehouseOptions: () => of([]),
             createWarehouse: createWarehouseSpy,
             updateWarehouse: updateWarehouseSpy,
           },
         },
         {
           provide: AuthSessionStore,
-          useValue: { hasPermission: () => true },
+          useValue: {
+            hasPermission: () => true,
+            activeContext: () => null,
+            filterBranches: <T>(items: T[]) => items,
+          },
         },
         {
           provide: CapabilityService,
@@ -214,6 +251,163 @@ describe('WarehouseFormPage', () => {
       expectedVersion: 1,
       name: 'Updated Name',
       status: 'active',
+      branchId: 'branch-1',
+      isDefault: false,
+    });
+  });
+
+  describe('Default Reassignment Warning', () => {
+    it('shows reassignment warning when isDefault is checked and another warehouse is already the default', async () => {
+      TestBed.resetTestingModule();
+
+      await TestBed.configureTestingModule({
+        imports: [WarehouseFormPage],
+        providers: [
+          provideRouter([{ path: 'app/warehouses', component: WarehouseFormPage }]),
+          {
+            provide: BranchesWarehousesApi,
+            useValue: {
+              getWarehouse: () => of(mockWarehouse),
+              listBranchOptions: () => of([]),
+              listWarehouseOptions: () =>
+                of([
+                  {
+                    id: 'wh-existing-default',
+                    organizationId: 'org-1',
+                    name: 'Existing Default Warehouse',
+                    code: 'WH-DEF',
+                    status: 'active',
+                    version: 1,
+                    isDefault: true,
+                  },
+                ]),
+              createWarehouse: vi.fn().mockReturnValue(of(mockWarehouse)),
+              updateWarehouse: vi.fn().mockReturnValue(of(mockWarehouse)),
+            },
+          },
+          {
+            provide: AuthSessionStore,
+            useValue: {
+              hasPermission: () => true,
+              activeContext: () => null,
+              filterBranches: <T>(items: T[]) => items,
+            },
+          },
+          {
+            provide: CapabilityService,
+            useValue: {
+              canUseModule: () => true,
+              canViewField: () => true,
+              canEditField: () => true,
+              canPerformAction: () => true,
+            },
+          },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: {
+                paramMap: {
+                  get: (key: string) => (key === 'id' ? null : null),
+                },
+              },
+            },
+          },
+        ],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(WarehouseFormPage);
+      fixture.detectChanges();
+
+      const comp = fixture.componentInstance;
+
+      // Before checking isDefault – no warning
+      expect(fixture.nativeElement.querySelector('[data-testid="warehouse-reassignment-warning"]')).toBeNull();
+
+      // Check isDefault
+      comp.form.controls.isDefault.setValue(true);
+      fixture.detectChanges();
+
+      const warning = fixture.nativeElement.querySelector('[data-testid="warehouse-reassignment-warning"]');
+      expect(warning).toBeTruthy();
+      expect(warning.textContent).toContain('Default will be reassigned.');
+      expect(warning.textContent).toContain('Existing Default Warehouse');
+
+      // Uncheck isDefault – warning disappears
+      comp.form.controls.isDefault.setValue(false);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="warehouse-reassignment-warning"]')).toBeNull();
+    });
+
+    it('does not show reassignment warning when editing the current default warehouse', async () => {
+      TestBed.resetTestingModule();
+
+      const currentDefaultWarehouse = { ...mockWarehouse, id: 'wh-1', isDefault: true };
+
+      await TestBed.configureTestingModule({
+        imports: [WarehouseFormPage],
+        providers: [
+          provideRouter([{ path: 'app/warehouses', component: WarehouseFormPage }]),
+          {
+            provide: BranchesWarehousesApi,
+            useValue: {
+              getWarehouse: () => of(currentDefaultWarehouse),
+              listBranchOptions: () => of([]),
+              listWarehouseOptions: () =>
+                of([
+                  {
+                    id: 'wh-1',
+                    organizationId: 'org-1',
+                    name: 'Central Distribution Hub (Multan)',
+                    code: 'WH-MLT-01',
+                    status: 'active',
+                    version: 1,
+                    isDefault: true,
+                  },
+                ]),
+              createWarehouse: vi.fn().mockReturnValue(of(currentDefaultWarehouse)),
+              updateWarehouse: vi.fn().mockReturnValue(of(currentDefaultWarehouse)),
+            },
+          },
+          {
+            provide: AuthSessionStore,
+            useValue: {
+              hasPermission: () => true,
+              activeContext: () => null,
+              filterBranches: <T>(items: T[]) => items,
+            },
+          },
+          {
+            provide: CapabilityService,
+            useValue: {
+              canUseModule: () => true,
+              canViewField: () => true,
+              canEditField: () => true,
+              canPerformAction: () => true,
+            },
+          },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: {
+                paramMap: {
+                  get: (key: string) => (key === 'id' ? 'wh-1' : null),
+                },
+              },
+            },
+          },
+        ],
+      }).compileComponents();
+
+      const fixture = TestBed.createComponent(WarehouseFormPage);
+      fixture.detectChanges();
+
+      const comp = fixture.componentInstance;
+      comp.form.controls.isDefault.setValue(true);
+      fixture.detectChanges();
+
+      // existingDefaultId === warehouseId → no warning
+      expect(fixture.nativeElement.querySelector('[data-testid="warehouse-reassignment-warning"]')).toBeNull();
     });
   });
 });

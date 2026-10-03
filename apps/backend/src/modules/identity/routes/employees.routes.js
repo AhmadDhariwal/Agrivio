@@ -119,6 +119,20 @@ function registerEmployeesRoutes(deps) {
     },
   );
 
+  router.delete(
+    `${API_USERS_PATH}/:id`,
+    deps.requireAuth,
+    deps.requireCsrf,
+    requireOrganizationContext,
+    createRequirePermissionMiddleware('users.deactivate'),
+    deps.requireOperationalAccess,
+    requireEmployeesModule,
+    requireDeactivateAllowed,
+    (req, res, next) => {
+      void controller.cancelInvitation(req, res, next);
+    },
+  );
+
   router.put(
     `${API_USERS_PATH}/:id/access-assignments`,
     deps.requireAuth,

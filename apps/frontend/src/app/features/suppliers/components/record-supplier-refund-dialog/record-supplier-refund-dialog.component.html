@@ -1,0 +1,164 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Record Supplier Refund"
+  description="Record a cash, bank, or wallet refund returned from available supplier advance."
+  size="md"
+  (dismiss)="onDismiss()"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" class="refund-form" novalidate>
+    @if (errorMessage()) {
+      <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+    }
+
+    <div class="helper-box" data-testid="refund-helper-box">
+      <p class="helper-text">
+        Use this when the supplier actually returns money held as Supplier Advance. It is not Revenue.
+      </p>
+    </div>
+
+    <div class="form-grid">
+      <!-- Supplier (Preselected) -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Supplier" [required]="true" />
+        <div class="static-box" data-testid="refund-supplier-name">
+          <strong>{{ supplierName() }}</strong>
+        </div>
+      </div>
+
+      <!-- Available Supplier Advance Card -->
+      <div class="balance-card form-field--full" data-testid="refund-available-advance-card">
+        <span class="balance-card__label">Available Supplier Advance</span>
+        <strong class="balance-card__value" data-testid="refund-available-advance-value">
+          PKR {{ availableAdvanceFormatted() }}
+        </strong>
+      </div>
+
+      <!-- Receive Into Account -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Receive Into (Cash / Bank / Wallet)" [required]="true" for="refund-account" />
+        <agrivio-ui-searchable-dropdown
+          id="refund-account"
+          testId="refund-account-select"
+          formControlName="accountId"
+          [options]="accountOptions()"
+          placeholder="Select receiving account"
+          [searchable]="true"
+          [clearable]="false"
+          [serverSearch]="false"
+        />
+        @if (formSubmitAttempted() && form.controls.accountId.errors?.['required']) {
+          <p class="field-error" role="alert">Receiving account is required.</p>
+        }
+      </div>
+
+      <!-- Refund Amount -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Refund Amount (PKR)" [required]="true" for="refund-amount" />
+        <input
+          id="refund-amount"
+          type="text"
+          inputmode="decimal"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && (form.controls.amount.invalid || exceedsAdvance())"
+          formControlName="amount"
+          placeholder="0.00"
+          data-testid="refund-amount-input"
+        />
+        @if (formSubmitAttempted() && form.controls.amount.errors?.['required']) {
+          <p class="field-error" role="alert">Refund amount is required.</p>
+        } @else if (formSubmitAttempted() && form.controls.amount.errors?.['positiveMoney']) {
+          <p class="field-error" role="alert">Amount must be greater than zero.</p>
+        } @else if (exceedsAdvance()) {
+          <p class="field-error" role="alert" data-testid="refund-exceeds-advance-error">
+            Refund amount cannot exceed available Supplier Advance (PKR {{ availableAdvanceFormatted() }}).
+          </p>
+        }
+      </div>
+
+      <!-- Business Date -->
+      <div class="form-field">
+        <agrivio-ui-field-label label="Business Date" [required]="true" for="refund-business-date" />
+        <input
+          id="refund-business-date"
+          type="date"
+          class="ag-input"
+          [class.ag-input--invalid]="formSubmitAttempted() && form.controls.businessDate.invalid"
+          formControlName="businessDate"
+          data-testid="refund-business-date-input"
+        />
+        @if (formSubmitAttempted() && form.controls.businessDate.errors?.['required']) {
+          <p class="field-error" role="alert">Business date is required.</p>
+        }
+      </div>
+
+      <!-- Reference (Optional) -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Reference (Optional)" [required]="false" for="refund-reference" />
+        <input
+          id="refund-reference"
+          type="text"
+          class="ag-input"
+          formControlName="reference"
+          placeholder="e.g. REF-2026-001"
+          maxlength="160"
+          data-testid="refund-reference-input"
+        />
+      </div>
+
+      <!-- Notes (Optional) -->
+      <div class="form-field form-field--full">
+        <agrivio-ui-field-label label="Notes (Optional)" [required]="false" for="refund-notes" />
+        <textarea
+          id="refund-notes"
+          class="ag-input"
+          formControlName="notes"
+          placeholder="Optional notes regarding the supplier refund"
+          rows="2"
+          maxlength="1000"
+          data-testid="refund-notes-input"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Preview Box -->
+    @if (hasPreview()) {
+      <div class="preview-box" data-testid="refund-summary-preview">
+        <h4 class="preview-title">Refund Preview</h4>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <span class="preview-label">Supplier Advance</span>
+            <strong class="preview-val preview-val--neg" data-testid="preview-advance-delta">
+              - PKR {{ formattedAmount() }}
+            </strong>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">{{ selectedAccountName() }}</span>
+            <strong class="preview-val preview-val--pos" data-testid="preview-account-delta">
+              + PKR {{ formattedAmount() }}
+            </strong>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div dialog-actions class="dialog-actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="onDismiss()"
+        [disabled]="saving()"
+        data-testid="refund-cancel-btn"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="ag-btn ag-btn--primary"
+        [disabled]="saving() || exceedsAdvance() || isInvalidAmount()"
+        data-testid="refund-submit-btn"
+      >
+        {{ saving() ? 'Recording…' : 'Record Supplier Refund' }}
+      </button>
+    </div>
+  </form>
+</agrivio-ui-dialog>

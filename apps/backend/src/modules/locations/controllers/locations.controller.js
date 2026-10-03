@@ -112,7 +112,11 @@ function createLocationsController(deps) {
     async listWarehouseOptions(req, res, next) {
       try {
         const selectedIds = parseSelectedIds(req.query);
-        const { items } = await deps.locationsService.listWarehouses(requireOrganizationId(req));
+        const branchId = typeof req.query.branchId === 'string' ? req.query.branchId.trim() : '';
+        const organizationId = requireOrganizationId(req);
+        const { items } = branchId
+          ? await deps.locationsService.listWarehouses(organizationId, { branchId })
+          : await deps.locationsService.listWarehouses(organizationId);
         const scoped = filterAssignedLocationOptions(
           req.authContext,
           items.filter((item) => item.status === 'active' || selectedIds.has(item.id)),

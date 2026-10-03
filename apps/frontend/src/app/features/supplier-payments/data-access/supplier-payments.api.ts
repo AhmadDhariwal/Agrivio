@@ -11,6 +11,8 @@ import { invalidateSupplierPaymentPostedEffects } from '../../purchases/data-acc
 import { SupplierRecord } from '../../suppliers/models/suppliers.models';
 import {
   SupplierLedgerEffectRecord,
+  SupplierPaymentCorrectionInput,
+  SupplierPaymentCorrectionResult,
   SupplierPaymentCreateInput,
   SupplierPaymentRecord,
   SupplierReconciliationRecord,
@@ -173,5 +175,29 @@ export class SupplierPaymentsApi {
           )
           .pipe(map((response) => response.data)),
     });
+  }
+
+  correctPayment(
+    paymentId: string,
+    payload: SupplierPaymentCorrectionInput,
+    idempotencyKey: string,
+  ): Observable<SupplierPaymentCorrectionResult> {
+    const url = `${environment.publicApiBaseUrl}/api/v1/payments/${paymentId}/correct`;
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .post<{ data: SupplierPaymentCorrectionResult }>(url, payload, {
+            withCredentials: true,
+            headers: {
+              'X-CSRF-Token': csrfToken,
+              'Idempotency-Key': idempotencyKey,
+            },
+          })
+          .pipe(
+            map((response) => response.data),
+            tap(() => invalidateSupplierPaymentPostedEffects(this.queryCache)),
+          ),
+      ),
+    );
   }
 }

@@ -3,7 +3,14 @@
   <header class="page-head">
     <div class="page-head__title-group">
       <p class="page-head__eyebrow">INVENTORY</p>
-      <h1 class="page-head__title">Opening stock</h1>
+      <div class="page-head__title-wrap">
+        <h1 class="page-head__title">Opening stock</h1>
+        @if (isDraft()) {
+          <span class="tracking-chip" data-testid="opening-stock-draft-badge">Draft</span>
+        } @else if (isPosted()) {
+          <span class="tracking-chip tracking-chip--batch" data-testid="opening-stock-posted-badge">Posted</span>
+        }
+      </div>
       <p class="page-head__lede">
         Post auditable opening stock with batch and expiry where product tracking requires them.
       </p>
@@ -53,7 +60,7 @@
   </div>
   }
 
-  <form class="os-form" [formGroup]="form" (ngSubmit)="submit()" data-testid="opening-stock-form">
+  <form class="os-form" [formGroup]="form" (ngSubmit)="openPostDialog()" data-testid="opening-stock-form">
     <!-- Section 1: Opening Stock Details -->
     <section class="form-card">
       <div class="form-card__header">
@@ -84,21 +91,16 @@
       </div>
 
       <div class="form-card__body">
-        <div class="form-grid form-grid--3col">
+        <div class="form-grid" [class.form-grid--3col]="showOpeningStockProductSearch()" [class.form-grid--2col]="!showOpeningStockProductSearch()">
           <!-- Find Product -->
           @if (showOpeningStockProductSearch()) {
-          <div class="ag-field">
-            <agrivio-ui-field-label label="Find Product" for="opening-product-search" />
             <input
               id="opening-product-search"
-              class="ag-input"
-              type="search"
-              placeholder="Search by name or SKU…"
+              type="hidden"
               (input)="onProductSearch($event)"
               (change)="onProductSearch($event)"
+              data-testid="opening-product-search"
             />
-            <p class="field-hint">Filter the product dropdown options.</p>
-          </div>
           }
 
           <!-- Warehouse -->
@@ -108,20 +110,15 @@
               for="opening-warehouse"
               [required]="fieldRequired(form.controls.warehouseId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="opening-warehouse"
-              class="ag-select"
+              testId="opening-warehouse"
               formControlName="warehouseId"
-              data-testid="opening-warehouse"
-              [class.ag-input--invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
-              [attr.aria-required]="fieldRequired(form.controls.warehouseId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()) ? 'true' : null"
-            >
-              <option value="" disabled>Select warehouse</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-              <option [value]="warehouse.id">{{ warehouse.name }}</option>
-              }
-            </select>
+              [options]="warehouseOptions()"
+              placeholder="Select warehouse"
+              [error]="fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted())"
+              [required]="fieldRequired(form.controls.warehouseId)"
+            />
             @if (fieldError(form.controls.warehouseId, 'Warehouse', formSubmitAttempted()); as warehouseError) {
             <p class="field-error" role="alert">{{ warehouseError }}</p>
             } @else {
@@ -136,20 +133,18 @@
               for="opening-product"
               [required]="fieldRequired(form.controls.productId)"
             />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="opening-product"
-              class="ag-select"
+              testId="opening-product"
               formControlName="productId"
-              data-testid="opening-product"
-              [class.ag-input--invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
-              [attr.aria-required]="fieldRequired(form.controls.productId) ? 'true' : null"
-              [attr.aria-invalid]="fieldError(form.controls.productId, 'Product', formSubmitAttempted()) ? 'true' : null"
-            >
-              <option value="" disabled>Select product</option>
-              @for (product of products(); track product.id) {
-              <option [value]="product.id">{{ product.name }} ({{ product.trackingMode }})</option>
-              }
-            </select>
+              [options]="productOptions()"
+              placeholder="Select product"
+              [serverSearch]="true"
+              [selectedLabel]="productSelectedLabel()"
+              (searchChange)="onProductComboboxSearch($event)"
+              [error]="fieldError(form.controls.productId, 'Product', formSubmitAttempted())"
+              [required]="fieldRequired(form.controls.productId)"
+            />
             @if (fieldError(form.controls.productId, 'Product', formSubmitAttempted()); as productError) {
             <p class="field-error" role="alert">{{ productError }}</p>
             } @else {
@@ -216,17 +211,14 @@
           @if (showOpeningStockPackaging()) {
           <div class="ag-field">
             <agrivio-ui-field-label label="Packaging Unit (Optional)" for="opening-packaging" />
-            <select
+            <agrivio-ui-searchable-dropdown
               id="opening-packaging"
-              class="ag-select"
+              testId="opening-packaging"
               formControlName="packagingUnitId"
-              data-testid="opening-packaging"
-            >
-              <option value="">Base unit</option>
-              @for (unit of packagingUnits(); track unit.id) {
-              <option [value]="unit.id">{{ unit.name }} (×{{ unit.conversionFactor }})</option>
-              }
-            </select>
+              [options]="packagingOptions()"
+              placeholder="Base unit"
+              [clearable]="true"
+            />
             <p class="field-hint">Optional packaging unit conversion.</p>
           </div>
           }
@@ -399,56 +391,423 @@
 
     <!-- Action Footer -->
     <footer class="form-actions">
-      <button
-        class="ag-btn ag-btn--primary"
-        type="submit"
-        [disabled]="!canPost()"
-        data-testid="opening-stock-save"
-      >
-        @if (saving()) {
-        <svg
-          class="spin-icon"
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
+      @if (isPosted()) {
+        @if (showViewStockAction()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-view-stock"
         >
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-        Posting… } @else {
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          View stock
+        </a>
+        }
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-cancel"
         >
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        Post opening stock }
-      </button>
-      @if (showViewStockAction()) {
-      <a
-        class="ag-btn ag-btn--secondary"
-        routerLink="/app/inventory/stock"
-        data-testid="opening-stock-view-stock"
-      >
-        View stock
-      </a>
+          Cancel
+        </a>
+      } @else if (isDraft()) {
+        @if (!isEditing()) {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="enableEditing()"
+          data-testid="opening-stock-edit"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            <path d="m15 5 4 4" />
+          </svg>
+          Edit
+        </button>
+        }
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary ag-btn--danger-hover"
+          (click)="openDiscardDialog()"
+          [disabled]="discarding()"
+          data-testid="opening-stock-discard"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            />
+          </svg>
+          {{ discarding() ? 'Discarding…' : 'Discard Draft' }}
+        </button>
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="saveDraft()"
+          [disabled]="savingDraft() || saving()"
+          data-testid="opening-stock-save-draft"
+        >
+          @if (savingDraft()) {
+          <svg
+            class="spin-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Saving… } @else {
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          Save as draft }
+        </button>
+        <button
+          class="ag-btn ag-btn--primary"
+          type="button"
+          (click)="openPostDialog()"
+          [disabled]="!canPost() || saving() || savingDraft()"
+          data-testid="opening-stock-save"
+        >
+          @if (saving()) {
+          <svg
+            class="spin-icon"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Posting… } @else {
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Post opening stock }
+        </button>
+        @if (showViewStockAction()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-view-stock"
+        >
+          View stock
+        </a>
+        }
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-cancel"
+        >
+          Cancel
+        </a>
+      } @else {
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="saveDraft()"
+          [disabled]="savingDraft() || saving()"
+          data-testid="opening-stock-save-draft"
+        >
+          @if (savingDraft()) {
+          <svg
+            class="spin-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Saving… } @else {
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          Save as draft }
+        </button>
+        <button
+          class="ag-btn ag-btn--primary"
+          type="button"
+          (click)="openPostDialog()"
+          [disabled]="!canPost() || saving() || savingDraft()"
+          data-testid="opening-stock-save"
+        >
+          @if (saving()) {
+          <svg
+            class="spin-icon"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Posting… } @else {
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Post opening stock }
+        </button>
+        @if (showViewStockAction()) {
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-view-stock"
+        >
+          View stock
+        </a>
+        }
+        <a
+          class="ag-btn ag-btn--secondary"
+          routerLink="/app/inventory/stock"
+          data-testid="opening-stock-cancel"
+        >
+          Cancel
+        </a>
       }
-      <a
-        class="ag-btn ag-btn--secondary"
-        routerLink="/app/inventory/stock"
-        data-testid="opening-stock-cancel"
-      >
-        Cancel
-      </a>
     </footer>
   </form>
+
+  <!-- Opening Stock Draft Work-Tray -->
+  <section class="history-card">
+    <div class="history-card__header">
+      <div class="history-card__heading-group">
+        <h2 class="history-card__title">Draft work-tray</h2>
+        <p class="history-card__subtitle">Pending opening stock drafts awaiting review or posting.</p>
+      </div>
+      <span class="history-card__count">{{ total() }} {{ total() === 1 ? 'draft' : 'drafts' }} pending</span>
+    </div>
+
+    <div class="ag-table-wrap">
+      <table class="ag-table" data-testid="opening-stock-list">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Warehouse</th>
+            <th>Quantity</th>
+            <th>Value</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of recentOpeningStock(); track item.id) {
+            <tr data-testid="opening-stock-row">
+              <td>
+                <div class="product-cell">
+                  <span class="product-cell__name">{{ getProductName(item.productId) }}</span>
+                  <div class="product-cell__meta">
+                    @if (getProductSku(item.productId); as sku) {
+                      <span class="product-cell__sku font-mono">SKU: {{ sku }}</span>
+                    }
+                    @if (item.batchNumber) {
+                      <span class="batch-tag">Batch: {{ item.batchNumber }}</span>
+                    }
+                    @if (item.expiryDate) {
+                      <span class="expiry-tag">Exp: {{ item.expiryDate }}</span>
+                    }
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="warehouse-name">{{ getWarehouseName(item.warehouseId) }}</span>
+              </td>
+              <td>
+                <div class="quantity-cell">
+                  <span class="quantity-cell__amount">{{ item.quantity }}</span>
+                  @if (item.unitCode) {
+                    <span class="quantity-cell__unit">{{ item.unitCode }}</span>
+                  }
+                </div>
+              </td>
+              <td>
+                <div class="value-cell">
+                  <span class="value-cell__amount">{{ item.inventoryValue.amount }}</span>
+                  <span class="value-cell__currency">{{ item.inventoryValue.currency }}</span>
+                </div>
+              </td>
+              <td class="text-right actions-cell">
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="row-action-btn"
+                    data-testid="opening-stock-edit-draft"
+                    (click)="editDraftRow(item)"
+                    title="Edit Draft"
+                    aria-label="Edit Draft"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      <path d="m15 5 4 4" />
+                    </svg>
+                    <span class="ag-sr-only">Edit Draft</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="row-action-btn row-action-btn--danger"
+                    data-testid="opening-stock-discard-draft"
+                    (click)="askDiscardRow(item)"
+                    title="Discard Draft"
+                    aria-label="Discard Draft"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      />
+                    </svg>
+                    <span class="ag-sr-only">Discard Draft</span>
+                  </button>
+                  @if (canPostOpeningStock()) {
+                    <button
+                      type="button"
+                      class="row-action-btn row-action-btn--primary"
+                      data-testid="opening-stock-post-draft"
+                      (click)="askPostRow(item)"
+                      title="Post"
+                      aria-label="Post"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span class="ag-sr-only">Post</span>
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">No drafts pending.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <agrivio-ui-pagination
+      [page]="page()"
+      [pageSize]="pageSize()"
+      [total]="total()"
+      [disabled]="loading()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  </section>
   }
+
+  <!-- Discard Draft Confirm Dialog -->
+  <agrivio-ui-confirm-dialog
+    [open]="discardDialogOpen()"
+    title="Discard draft opening stock?"
+    message="Are you sure you want to discard this draft opening stock? This action cannot be undone."
+    confirmLabel="Discard Draft"
+    cancelLabel="Cancel"
+    [danger]="true"
+    (confirmed)="onDiscardConfirmed()"
+    (dismiss)="onDiscardDismissed()"
+  />
+
+  <!-- Post Opening Stock Confirm Dialog -->
+  <agrivio-ui-confirm-dialog
+    [open]="postDialogOpen()"
+    [title]="pendingPost() ? 'Post opening stock draft?' : 'Post opening stock?'"
+    message="Are you sure you want to post this opening stock? This will update inventory balances and cannot be undone."
+    confirmLabel="Post Opening Stock"
+    cancelLabel="Cancel"
+    [danger]="false"
+    (confirmed)="onPostConfirmed()"
+    (dismiss)="onPostDismissed()"
+  />
 </div>

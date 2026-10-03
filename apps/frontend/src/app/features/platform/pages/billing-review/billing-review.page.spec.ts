@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Observable, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { PlatformBillingReviewPage } from './billing-review.page';
 import { BillingRecordSummary, PlatformBillingRecordDetail, SubscriptionApi } from '../../../subscriptions/data-access/subscription.api';
@@ -44,34 +45,45 @@ describe('PlatformBillingReviewPage', () => {
   let page: PlatformBillingReviewPage;
   let listCalls: Array<{ query: unknown; forceRefresh: boolean }>;
   let detailCalls: string[];
+  let detailRefreshCalls: Array<{ id: string; forceRefresh: boolean }>;
   let evidenceCalls: string[];
   let approveCalls: Array<{ id: string; version: number }>;
   let rejectCalls: Array<{ id: string; version: number; reason: string }>;
   let startReviewCalls: Array<{ id: string; version: number }>;
   let hasPermission: (permission: string) => boolean;
   let queueItems: BillingRecordSummary[];
+  let customDetailResolver: ((id: string) => PlatformBillingRecordDetail) | null = null;
+  let approveBillingOverride: ((id: string, expectedVersion: number) => Observable<unknown>) | null = null;
 
   beforeEach(async () => {
     listCalls = [];
     detailCalls = [];
+    detailRefreshCalls = [];
     evidenceCalls = [];
     approveCalls = [];
     rejectCalls = [];
     startReviewCalls = [];
     hasPermission = () => true;
     queueItems = [submittedRecord];
+    customDetailResolver = null;
+    approveBillingOverride = null;
 
     const subscriptionApi = {
       listPlatformBillingRecords: (query: unknown, forceRefresh = false) => {
         listCalls.push({ query, forceRefresh });
         return of({ items: queueItems, total: queueItems.length, limit: 25, offset: 0 });
       },
-      getPlatformBillingRecord: (id: string) => {
+      getPlatformBillingRecord: (id: string, forceRefresh = false) => {
         detailCalls.push(id);
+        detailRefreshCalls.push({ id, forceRefresh });
+        if (customDetailResolver) {
+          return of(customDetailResolver(id));
+        }
         const detail: PlatformBillingRecordDetail = {
           ...submittedRecord,
           id,
           notes: 'Paid at the branch',
+          subscriptionHealth: 'available',
           currentSubscription: {
             id: 'sub-live-1',
             organizationId: 'org-1',
@@ -102,6 +114,9 @@ describe('PlatformBillingReviewPage', () => {
       },
       approveBilling: (id: string, expectedVersion: number) => {
         approveCalls.push({ id, version: expectedVersion });
+        if (approveBillingOverride) {
+          return approveBillingOverride(id, expectedVersion);
+        }
         return of({
           ...submittedRecord,
           status: 'approved',
@@ -351,5 +366,224 @@ describe('PlatformBillingReviewPage', () => {
     page.askApprove(submittedRecord);
     page.confirmApprove();
     expect(approveCalls).toEqual([]);
+  });
+
+  it('displays platform warning in inspector and disables Approve with visible explanation when subscription is missing', () => {
+    const missingRecord: BillingRecordSummary = {
+      ...submittedRecord,
+      id: 'bill-missing',
+      subscriptionHealth: 'missing',
+    };
+    customDetailResolver = (id: string) => ({
+      ...missingRecord,
+      id,
+      subscriptionHealth: 'missing',
+      currentSubscription: null,
+      appliedSubscription: null,
+    });
+    page.items.set([missingRecord]);
+    page.openInspector(missingRecord);
+    fixture.detectChanges();
+
+    const html = fixture.nativeElement as HTMLElement;
+    expect(html.querySelector('[data-testid="billing-subscription-repair-warning"]')).not.toBeNull();
+    expect(html.textContent).toContain('Subscription repair required');
+    expect(html.textContent).toContain(
+      'This organization is missing its subscription lifecycle record. Billing approval is blocked until the subscription is repaired.',
+    );
+    expect(html.textContent).toContain('Subscription repair required before approval.');
+
+    const approveButton = html.querySelector('[data-testid="billing-approve"]') as HTMLButtonElement;
+    expect(approveButton).not.toBeNull();
+    expect(approveButton.disabled).toBe(true);
+
+    page.askApprove(missingRecord);
+    fixture.detectChanges();
+    expect(page.approveOpen()).toBe(false);
+    expect(approveCalls).toEqual([]);
+  });
+
+  it('keeps Reject available and functional when organization has missing subscription', () => {
+    const missingRecord: BillingRecordSummary = {
+      ...submittedRecord,
+      id: 'bill-missing',
+      subscriptionHealth: 'missing',
+    };
+    customDetailResolver = (id: string) => ({
+      ...missingRecord,
+      id,
+      subscriptionHealth: 'missing',
+      currentSubscription: null,
+      appliedSubscription: null,
+    });
+    page.items.set([missingRecord]);
+    page.openInspector(missingRecord);
+    fixture.detectChanges();
+
+    const html = fixture.nativeElement as HTMLElement;
+    const rejectButton = html.querySelector('[data-testid="billing-reject"]') as HTMLButtonElement;
+    expect(rejectButton).not.toBeNull();
+    expect(rejectButton.disabled).toBe(false);
+
+    page.askReject(missingRecord);
+    fixture.detectChanges();
+    expect(page.rejectOpen()).toBe(true);
+
+    page.rejectReason.set('Invalid documentation provided');
+    page.confirmReject();
+    expect(rejectCalls).toEqual([
+      { id: 'bill-missing', version: 3, reason: 'Invalid documentation provided' },
+    ]);
+  });
+
+  it('clears warning and enables Approve after server repair and refresh without stale cached state', () => {
+    let repaired = false;
+    const record: BillingRecordSummary = {
+      ...submittedRecord,
+      id: 'bill-repair',
+      subscriptionHealth: 'missing',
+    };
+
+    customDetailResolver = (id: string) => {
+      if (!repaired) {
+        return {
+          ...record,
+          id,
+          subscriptionHealth: 'missing',
+          currentSubscription: null,
+          appliedSubscription: null,
+        };
+      }
+      return {
+        ...record,
+        id,
+        subscriptionHealth: 'available',
+        currentSubscription: {
+          id: 'sub-repaired',
+          organizationId: 'org-1',
+          status: 'trial',
+          planCode: 'Business',
+          planVersion: 2,
+          planId: 'plan-1',
+          billingPeriod: 'monthly',
+          trialEndsAt: '2026-09-30T00:00:00.000Z',
+          graceEndsAt: null,
+          periodStartsAt: '2026-09-01T00:00:00.000Z',
+          periodEndsAt: '2026-09-30T00:00:00.000Z',
+          cancelledAt: null,
+          retainedUntil: null,
+          version: 1,
+        },
+        appliedSubscription: null,
+      };
+    };
+
+    page.items.set([record]);
+    page.openInspector(record);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="billing-subscription-repair-warning"]')).not.toBeNull();
+    const approveBtn = fixture.nativeElement.querySelector('[data-testid="billing-approve"]') as HTMLButtonElement;
+    expect(approveBtn.disabled).toBe(true);
+
+    // Operator repairs subscription externally and Super Admin clicks Refresh
+    repaired = true;
+    queueItems = [{ ...record, subscriptionHealth: 'available' }];
+    page.refresh();
+    fixture.detectChanges();
+
+    // Verify forceRefresh was requested for list and detail
+    expect(listCalls.at(-1)?.forceRefresh).toBe(true);
+    expect(detailRefreshCalls.at(-1)?.forceRefresh).toBe(true);
+
+    // Warning is cleared and Approve is enabled
+    expect(fixture.nativeElement.querySelector('[data-testid="billing-subscription-repair-warning"]')).toBeNull();
+    expect((fixture.nativeElement.querySelector('[data-testid="billing-approve"]') as HTMLButtonElement).disabled).toBe(false);
+
+    // Approve can be successfully executed
+    page.askApprove({ ...record, subscriptionHealth: 'available' });
+    fixture.detectChanges();
+    page.confirmApprove();
+    expect(approveCalls).toEqual([{ id: 'bill-repair', version: 3 }]);
+  });
+
+  it('translates authoritative backend 409 Subscription record is missing into actionable platform message', () => {
+    approveBillingOverride = () =>
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            statusText: 'Conflict',
+            error: { error: { message: 'Subscription record is missing' } },
+          }),
+      );
+
+    page.askApprove(submittedRecord);
+    fixture.detectChanges();
+    page.confirmApprove();
+    fixture.detectChanges();
+
+    expect(page.errorMessage()).toBe(
+      'Approval blocked: subscription record is missing. Complete subscription repair, refresh this billing record, and try again.',
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      'Approval blocked: subscription record is missing. Complete subscription repair, refresh this billing record, and try again.',
+    );
+  });
+
+  it('preserves other 409 conflict and error messages without translation', () => {
+    approveBillingOverride = () =>
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            statusText: 'Conflict',
+            error: { error: { message: 'Billing record version conflict' } },
+          }),
+      );
+
+    page.askApprove(submittedRecord);
+    fixture.detectChanges();
+    page.confirmApprove();
+    fixture.detectChanges();
+
+    expect(page.errorMessage()).toBe('Billing record version conflict');
+  });
+
+  it('preserves normal trial subscription approval UX without repair warning', () => {
+    customDetailResolver = (id: string) => ({
+      ...submittedRecord,
+      id,
+      subscriptionHealth: 'available',
+      currentSubscription: {
+        id: 'sub-trial',
+        organizationId: 'org-1',
+        status: 'trial',
+        planCode: 'Starter',
+        planVersion: 1,
+        planId: 'p-1',
+        billingPeriod: 'monthly',
+        trialEndsAt: '2026-09-15T00:00:00.000Z',
+        graceEndsAt: null,
+        periodStartsAt: '2026-09-01T00:00:00.000Z',
+        periodEndsAt: '2026-09-15T00:00:00.000Z',
+        cancelledAt: null,
+        retainedUntil: null,
+        version: 1,
+      },
+      appliedSubscription: null,
+    });
+
+    page.openInspector(submittedRecord);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="billing-subscription-repair-warning"]')).toBeNull();
+    const approveBtn = fixture.nativeElement.querySelector('[data-testid="billing-approve"]') as HTMLButtonElement;
+    expect(approveBtn.disabled).toBe(false);
+
+    page.askApprove(submittedRecord);
+    fixture.detectChanges();
+    page.confirmApprove();
+    expect(approveCalls).toEqual([{ id: 'bill-1', version: 3 }]);
   });
 });

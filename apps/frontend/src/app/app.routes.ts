@@ -5,8 +5,8 @@ import {
   requirePermissionGuard,
   requireSessionGuard,
   publicOnlyGuard,
+  signInGuard,
 } from './core/guards/session.guards';
-import { AppShellPage } from './features/shell/pages/app-shell/app-shell.page';
 
 export const appRoutes: Route[] = [
   {
@@ -66,7 +66,8 @@ export const appRoutes: Route[] = [
   {
     path: 'app',
     canActivate: [requireSessionGuard],
-    component: AppShellPage,
+    loadComponent: () =>
+      import('./features/shell/pages/app-shell/app-shell.page').then((m) => m.AppShellPage),
     children: [
       {
         path: '',
@@ -480,6 +481,17 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'customer-loans',
+        canActivate: [
+          requirePermissionGuard('customers.view'),
+          requireCapabilityGuard('customers'),
+        ],
+        loadComponent: () =>
+          import('./features/customers/pages/customer-loans/customer-loans.page').then(
+            (m) => m.CustomerLoansPage,
+          ),
+      },
+      {
         path: 'suppliers',
         canActivate: [
           requirePermissionGuard('suppliers.view'),
@@ -724,6 +736,20 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'purchases/:id/correct',
+        canActivate: [
+          requirePermissionGuard('purchases.cancel'),
+          requirePermissionGuard('purchases.post'),
+          requireCapabilityGuard('purchases'),
+          requireCapabilityGuard('purchases.actions.cancel', 'action'),
+          requireCapabilityGuard('purchases.actions.post', 'action'),
+        ],
+        loadComponent: () =>
+          import('./features/purchases/pages/purchase-edit/purchase-edit.page').then(
+            (m) => m.PurchaseEditPage,
+          ),
+      },
+      {
         path: 'supplier-payments',
         canActivate: [
           requirePermissionGuard('supplier-payments.view'),
@@ -873,6 +899,17 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'inventory/opening-stock',
+        canActivate: [
+          requirePermissionGuard('inventory.opening-stock.post'),
+          requireCapabilityGuard('inventory.openingStock'),
+        ],
+        loadComponent: () =>
+          import('./features/inventory/pages/opening-stock/opening-stock.page').then(
+            (m) => m.OpeningStockPage,
+          ),
+      },
+      {
+        path: 'inventory/opening-stock/:id',
         canActivate: [
           requirePermissionGuard('inventory.opening-stock.post'),
           requireCapabilityGuard('inventory.openingStock'),

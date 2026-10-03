@@ -263,7 +263,7 @@ function createCatalogService(deps) {
       const input = parseProductCreate(body);
       const category = await requireCategory(organizationId, input.categoryId);
       assertTrackingModeAllowed(category.productClass, input.trackingMode);
-      const currentUsage = await store.countProducts(organizationId);
+      const currentUsage = await store.countProducts(organizationId, options.session ?? null);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
         organizationId,
@@ -530,6 +530,10 @@ function createCatalogService(deps) {
       } catch (error) {
         mapDuplicate(error, 'Price tier already exists for this product');
       }
+    },
+
+    async countProducts(organizationId, options = {}) {
+      return store.countProducts(organizationId, options.session ?? null);
     },
   };
 }

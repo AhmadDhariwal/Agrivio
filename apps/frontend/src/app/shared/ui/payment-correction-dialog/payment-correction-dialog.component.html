@@ -1,0 +1,278 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  [title]="dialogTitle()"
+  description="Posted payments are immutable. Correction creates an atomic reversal and posts a replacement."
+  size="lg"
+  (dismiss)="onDismiss()"
+>
+  @if (payment(); as p) {
+    <!-- Original Payment (Read-Only) -->
+    <section class="correction-section correction-section--original" aria-label="Original payment details">
+      <h3 class="correction-section__heading">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        Original Payment (Immutable Record)
+      </h3>
+      <div class="correction-readonly-grid">
+        <div class="correction-readonly-item">
+          <span class="correction-readonly-label">Amount</span>
+          <span class="correction-readonly-value correction-readonly-value--money">{{ p.amount.currency }} {{ formatMoney(p.amount.amount) }}</span>
+        </div>
+        <div class="correction-readonly-item">
+          <span class="correction-readonly-label">Payment Date</span>
+          <span class="correction-readonly-value">{{ p.paymentDate }}</span>
+        </div>
+        <div class="correction-readonly-item">
+          <span class="correction-readonly-label">{{ p.partyType === 'customer' ? 'Customer' : 'Supplier' }}</span>
+          <span class="correction-readonly-value">{{ p.partyName || '—' }}</span>
+        </div>
+        <div class="correction-readonly-item">
+          <span class="correction-readonly-label">Account</span>
+          <span class="correction-readonly-value font-mono">{{ p.accountId }}</span>
+        </div>
+        <div class="correction-readonly-item">
+          <span class="correction-readonly-label">Allocation Mode</span>
+          <span class="correction-readonly-value">{{ formatMode(p.allocationMode) }}</span>
+        </div>
+        @if (p.notes) {
+          <div class="correction-readonly-item correction-readonly-item--full">
+            <span class="correction-readonly-label">Notes</span>
+            <span class="correction-readonly-value">{{ p.notes }}</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- Mode Toggle Tabs (Reverse vs Correct) -->
+    <div class="correction-mode-tabs" role="group" aria-label="Correction type">
+      <button
+        type="button"
+        class="correction-tab-btn"
+        [class.correction-tab-btn--active]="mode() === 'reverse'"
+        [attr.aria-pressed]="mode() === 'reverse'"
+        (click)="setMode('reverse')"
+        data-testid="correction-tab-reverse"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 .49-3.36"></path></svg>
+        Pure Reversal
+      </button>
+      <button
+        type="button"
+        class="correction-tab-btn"
+        [class.correction-tab-btn--active]="mode() === 'correct'"
+        [attr.aria-pressed]="mode() === 'correct'"
+        (click)="setMode('correct')"
+        data-testid="correction-tab-correct"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        Reverse & Replace (Correction)
+      </button>
+    </div>
+
+    <!-- Corrected Replacement Inputs (shown only in 'correct' mode) -->
+    @if (mode() === 'correct') {
+      <section class="correction-section correction-section--replacement" aria-label="Replacement payment parameters">
+        <h3 class="correction-section__heading">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+          Replacement Payment Parameters
+        </h3>
+
+        <div class="correction-form-grid">
+          <!-- Corrected Amount -->
+          <div class="form-field">
+            <agrivio-ui-field-label for="correction-amount" label="Corrected Amount (PKR)" [required]="true" />
+            <input
+              id="correction-amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              class="ag-input"
+              [class.ag-input--error]="submitAttempted() && !isAmountValid()"
+              [ngModel]="replacementAmount()"
+              (ngModelChange)="replacementAmount.set($event)"
+              placeholder="0.00"
+              required
+              data-testid="correction-replacement-amount"
+            />
+            @if (submitAttempted() && !isAmountValid()) {
+              <span class="field-error">Amount must be greater than zero.</span>
+            }
+          </div>
+
+          <!-- Corrected Business Date -->
+          <div class="form-field">
+            <agrivio-ui-field-label for="correction-date" label="Payment Business Date" [required]="true" />
+            <input
+              id="correction-date"
+              type="date"
+              class="ag-input"
+              [class.ag-input--error]="submitAttempted() && !replacementDate().trim()"
+              [ngModel]="replacementDate()"
+              (ngModelChange)="replacementDate.set($event)"
+              required
+              data-testid="correction-replacement-date"
+            />
+            @if (submitAttempted() && !replacementDate().trim()) {
+              <span class="field-error">Payment date is required.</span>
+            }
+          </div>
+
+          <!-- Cash/Bank Account Override (Optional, defaults to original) -->
+          <div class="form-field">
+            <agrivio-ui-field-label for="correction-account" label="Cash/Bank Account" [required]="true" />
+            <agrivio-ui-searchable-dropdown
+              id="correction-account"
+              [options]="accountOptions()"
+              [ngModel]="replacementAccountId()"
+              (ngModelChange)="replacementAccountId.set($event)"
+              [selectedLabel]="selectedAccountLabel()"
+              placeholder="Select active liquid account"
+              ariaLabel="Cash or bank account"
+              testId="correction-replacement-account"
+            />
+          </div>
+
+          <!-- Allocation Mode -->
+          <div class="form-field">
+            <agrivio-ui-field-label for="correction-alloc-mode" label="Allocation Mode" [required]="true" />
+            <select
+              id="correction-alloc-mode"
+              class="ag-select"
+              [ngModel]="replacementAllocationMode()"
+              (ngModelChange)="replacementAllocationMode.set($event)"
+              data-testid="correction-replacement-allocation-mode"
+            >
+              <option value="general">General (Oldest Outstanding First)</option>
+              <option value="invoice_specific">Invoice-Specific</option>
+            </select>
+          </div>
+
+          <!-- Replacement Notes -->
+          <div class="form-field form-field--full">
+            <agrivio-ui-field-label for="correction-notes" label="Replacement Payment Notes" />
+            <input
+              id="correction-notes"
+              type="text"
+              class="ag-input"
+              [ngModel]="replacementNotes()"
+              (ngModelChange)="replacementNotes.set($event)"
+              placeholder="Replacement notes for the ledger…"
+              data-testid="correction-replacement-notes"
+            />
+          </div>
+        </div>
+
+        @if (replacementAllocationMode() === 'invoice_specific') {
+          <div class="allocation-targets" data-testid="correction-allocation-targets">
+            <h4>Target allocations</h4>
+            @if (allocationTargets().length === 0) {
+              <p class="field-error">No valid outstanding targets are available.</p>
+            }
+            @for (target of allocationTargets(); track target.id) {
+              <div class="allocation-row">
+                <div>
+                  <strong>{{ target.label }}</strong>
+                  <span>Outstanding: PKR {{ formatMoney(target.outstandingAmount) }}</span>
+                </div>
+                <label [for]="'correction-allocation-' + $index" class="ag-sr-only">
+                  Allocation for {{ target.label }}
+                </label>
+                <input
+                  [id]="'correction-allocation-' + $index"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="ag-input allocation-row__amount"
+                  [ngModel]="allocationAmount(target.id)"
+                  (ngModelChange)="setAllocationAmount(target.id, $event)"
+                  [attr.data-testid]="'correction-allocation-' + target.id"
+                />
+              </div>
+            }
+            <div class="allocation-total">
+              Allocated: PKR {{ formatMoney(allocationTotal()) }} / PKR {{ formatMoney(replacementAmount()) }}
+            </div>
+            @if (submitAttempted() && !isAllocationValid()) {
+              <span class="field-error">Target allocations must equal the replacement amount and must not exceed target outstanding balances.</span>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <!-- Required Correction Reason -->
+    <section class="correction-section correction-section--reason" aria-label="Reason for correction">
+      <agrivio-ui-field-label
+        for="correction-reason"
+        [label]="mode() === 'reverse' ? 'Reason for Reversal' : 'Reason for Correction'"
+        [required]="true"
+      />
+      <textarea
+        id="correction-reason"
+        rows="3"
+        class="ag-textarea"
+        [class.ag-textarea--error]="submitAttempted() && !reason().trim()"
+        [ngModel]="reason()"
+        (ngModelChange)="reason.set($event)"
+        maxlength="500"
+        [placeholder]="mode() === 'reverse' ? 'Explain why this payment is being cancelled/reversed (audit trail)…' : 'Explain what was incorrect and why the replacement is needed…'"
+        data-testid="correction-reason-input"
+      ></textarea>
+      <div class="char-count" [class.char-count--warn]="reason().length > 450">
+        {{ reason().length }}/500
+      </div>
+      @if (submitAttempted() && !reason().trim()) {
+        <span class="field-error">Correction reason is mandatory for financial auditability.</span>
+      }
+    </section>
+
+    <!-- Real-Time Financial Impact Preview -->
+    <section class="correction-section correction-section--preview" aria-label="Financial impact preview" data-testid="correction-impact-preview">
+      <h3 class="correction-section__heading correction-section__heading--preview">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        Financial Impact Preview
+      </h3>
+      <div class="impact-preview-card">
+        <ul class="impact-list">
+          @for (line of impactLines(); track line) {
+            <li class="impact-item">
+              <span class="impact-bullet" aria-hidden="true">•</span>
+              <span>{{ line }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    </section>
+
+    <!-- Error Alert -->
+    @if (errorMessage(); as err) {
+      <agrivio-ui-alert tone="danger" [message]="err" role="alert" data-testid="correction-dialog-error" />
+    }
+
+    <!-- Actions -->
+    <div class="correction-actions">
+      <button
+        type="button"
+        class="ag-btn ag-btn--secondary"
+        (click)="onDismiss()"
+        [disabled]="submitting()"
+        data-testid="correction-cancel-btn"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="ag-btn"
+        [class.ag-btn--danger]="mode() === 'reverse'"
+        [class.ag-btn--primary]="mode() === 'correct'"
+        (click)="onSubmit()"
+        [disabled]="submitting()"
+        data-testid="correction-submit-btn"
+      >
+        @if (submitting()) {
+          <span class="ag-btn__spinner" aria-hidden="true"></span>
+        }
+        {{ submitLabel() }}
+      </button>
+    </div>
+  }
+</agrivio-ui-dialog>

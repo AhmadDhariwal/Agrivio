@@ -17,6 +17,8 @@ import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatCategoryOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import {
   fieldValidationMessage,
   hasRequiredValidator,
@@ -39,6 +41,7 @@ const BATCH_REQUIRED_CLASSES = new Set(['fertilizer', 'seed', 'pesticide', 'chem
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './product-form.page.html',
   styleUrl: './product-form.page.scss',
@@ -55,6 +58,7 @@ export class ProductFormPage {
 
   readonly productId = signal<string | null>(null);
   readonly categories = signal<CategoryRecord[]>([]);
+  readonly categoryOptions = computed(() => this.categories().map(formatCategoryOption));
   readonly selectedCategory = signal<CategoryRecord | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -315,8 +319,12 @@ export class ProductFormPage {
       });
   }
 
-  onCategorySearch(event: Event): void {
-    const target = event.target;
+  onCategorySearch(eventOrQuery: Event | string): void {
+    if (typeof eventOrQuery === 'string') {
+      this.categorySearchChanges.next(eventOrQuery.trim());
+      return;
+    }
+    const target = eventOrQuery.target;
     if (target instanceof HTMLInputElement) {
       this.categorySearchChanges.next(target.value.trim());
     }

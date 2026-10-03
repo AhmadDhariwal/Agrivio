@@ -311,32 +311,28 @@
               class="select-field select-field--product"
               data-testid="movements-product-filter"
             >
-              <select
-                class="select-field__input"
+              <agrivio-ui-searchable-dropdown
+                [options]="productOptions()"
                 [value]="productFilter()"
-                (change)="onProductChange($event)"
-                aria-label="Filter by product"
-              >
-                <option value="">All products</option>
-                @for (prod of productList(); track prod.id) {
-                  <option [value]="prod.id">{{ prod.name }} ({{ prod.sku }})</option>
-                }
-              </select>
+                (valueChange)="onProductSelected($event)"
+                allOptionLabel="All products"
+                placeholder="All products"
+                [clearable]="true"
+                ariaLabel="Filter by product"
+              />
             </div>
 
             <!-- Warehouse Filter (Server-side) -->
             <div class="select-field" data-testid="movements-warehouse-filter">
-              <select
-                class="select-field__input"
+              <agrivio-ui-searchable-dropdown
+                [options]="warehouseOptions()"
                 [value]="warehouseFilter()"
-                (change)="onWarehouseChange($event)"
-                aria-label="Filter by warehouse"
-              >
-                <option value="">All warehouses</option>
-                @for (wh of warehouseList(); track wh.id) {
-                  <option [value]="wh.id">{{ wh.name }} ({{ wh.code }})</option>
-                }
-              </select>
+                (valueChange)="onWarehouseSelected($event)"
+                allOptionLabel="All warehouses"
+                placeholder="All warehouses"
+                [clearable]="true"
+                ariaLabel="Filter by warehouse"
+              />
             </div>
 
             <!-- Direction Filter (Client-side) -->
@@ -1049,33 +1045,31 @@
 
         <div class="mobile-filter-sheet__body">
           <div class="filter-group">
-            <label class="filter-label" for="mobile-filter-product">Product</label>
-            <select
-              id="mobile-filter-product"
-              class="select-field__input"
+            <span class="filter-label">Product</span>
+            <agrivio-ui-searchable-dropdown
+              [options]="productOptions()"
               [value]="productFilter()"
-              (change)="onProductChange($event)"
-            >
-              <option value="">All products</option>
-              @for (prod of productList(); track prod.id) {
-                <option [value]="prod.id">{{ prod.name }} ({{ prod.sku }})</option>
-              }
-            </select>
+              (valueChange)="onProductSelected($event)"
+              allOptionLabel="All products"
+              placeholder="All products"
+              [clearable]="true"
+              ariaLabel="Filter by product"
+              testId="movements-mobile-product-filter"
+            />
           </div>
 
           <div class="filter-group">
-            <label class="filter-label" for="mobile-filter-warehouse">Warehouse</label>
-            <select
-              id="mobile-filter-warehouse"
-              class="select-field__input"
+            <span class="filter-label">Warehouse</span>
+            <agrivio-ui-searchable-dropdown
+              [options]="warehouseOptions()"
               [value]="warehouseFilter()"
-              (change)="onWarehouseChange($event)"
-            >
-              <option value="">All warehouses</option>
-              @for (wh of warehouseList(); track wh.id) {
-                <option [value]="wh.id">{{ wh.name }} ({{ wh.code }})</option>
-              }
-            </select>
+              (valueChange)="onWarehouseSelected($event)"
+              allOptionLabel="All warehouses"
+              placeholder="All warehouses"
+              [clearable]="true"
+              ariaLabel="Filter by warehouse"
+              testId="movements-mobile-warehouse-filter"
+            />
           </div>
 
           <div class="filter-group">

@@ -53,6 +53,26 @@ function normalizeInvoicePrefix(value) {
   return value.trim().toUpperCase();
 }
 
+function optionalBoolean(value, field) {
+  if (value === undefined) return false;
+  if (typeof value !== 'boolean') {
+    throw validationFailed(`${field} must be a boolean`, [
+      { field, message: `${field} must be a boolean` },
+    ]);
+  }
+  return value;
+}
+
+function optionalId(value, field) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw validationFailed(`${field} must be a non-empty string`, [
+      { field, message: `${field} must be a non-empty string` },
+    ]);
+  }
+  return value.trim();
+}
+
 function parseBranchCreate(body) {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     throw validationFailed('Request body must be an object');
@@ -73,6 +93,7 @@ function parseBranchCreate(body) {
     invoicePrefix,
     invoicePrefixNormalized: invoicePrefix,
     status: 'active',
+    isDefault: optionalBoolean(body.isDefault, 'isDefault'),
   };
 }
 
@@ -111,6 +132,9 @@ function parseBranchPatch(body) {
     }
     patch.status = body.status;
   }
+  if (body.isDefault !== undefined) {
+    patch.isDefault = optionalBoolean(body.isDefault, 'isDefault');
+  }
 
   if (Object.keys(patch).length === 0) {
     throw validationFailed('At least one branch field is required');
@@ -124,10 +148,12 @@ function parseWarehouseCreate(body) {
   }
   const name = requireTrimmedString(body.name, 'name', MAX_NAME);
   return {
+    branchId: optionalId(body.branchId, 'branchId'),
     name,
     nameNormalized: normalizeName(name),
     code: optionalTrimmedString(body.code, 'code', MAX_CODE),
     status: 'active',
+    isDefault: optionalBoolean(body.isDefault, 'isDefault'),
   };
 }
 
@@ -153,6 +179,12 @@ function parseWarehousePatch(body) {
       ]);
     }
     patch.status = body.status;
+  }
+  if (body.branchId !== undefined) {
+    patch.branchId = optionalId(body.branchId, 'branchId');
+  }
+  if (body.isDefault !== undefined) {
+    patch.isDefault = optionalBoolean(body.isDefault, 'isDefault');
   }
 
   if (Object.keys(patch).length === 0) {
@@ -214,6 +246,7 @@ function toBranchDto(record) {
     code: String(record['code'] ?? ''),
     invoicePrefix: String(record['invoicePrefix']),
     status: String(record['status']),
+    isDefault: record['isDefault'] === true,
     version: Number(record['version'] ?? 1),
   };
 }
@@ -222,9 +255,11 @@ function toWarehouseDto(record) {
   return {
     id: String(record['_id']),
     organizationId: String(record['organizationId']),
+    branchId: record['branchId'] ? String(record['branchId']) : null,
     name: String(record['name']),
     code: String(record['code'] ?? ''),
     status: String(record['status']),
+    isDefault: record['isDefault'] === true,
     version: Number(record['version'] ?? 1),
   };
 }

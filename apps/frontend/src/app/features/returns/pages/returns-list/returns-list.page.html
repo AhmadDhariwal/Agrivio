@@ -150,18 +150,15 @@
       <!-- Warehouse Filter -->
       @if (showWarehouseFilter() && warehouses().length > 0) {
       <div class="select-field">
-        <select
-          class="select-field__input"
+        <agrivio-ui-searchable-dropdown
+          [options]="warehouseOptions()"
           [value]="warehouseFilter()"
-          (change)="onWarehouseChange($event)"
-          aria-label="Filter by warehouse"
-          data-testid="returns-warehouse-filter"
-        >
-          <option value="">All warehouses</option>
-          @for (wh of warehouses(); track wh.id) {
-          <option [value]="wh.id">{{ wh.name }}</option>
-          }
-        </select>
+          (valueChange)="onWarehouseChange($event)"
+          allOptionLabel="All warehouses"
+          placeholder="All warehouses"
+          ariaLabel="Filter by warehouse"
+          testId="returns-warehouse-filter"
+        />
       </div>
       }
 
@@ -333,53 +330,59 @@
           <!-- Actions Column -->
           <td class="returns-table__td returns-table__td--actions">
             <div class="action-cell">
-              @if (canInspect()) {
-              <a
-                class="ag-btn ag-btn--secondary ag-btn--sm"
-                [routerLink]="['/app/returns', item.id]"
-                data-testid="return-open"
-              >
-                Open
-              </a>
-              }
-              @if (canReverse() && item.status === 'posted') {
-              <div class="row-menu-wrap">
+              @if (item.status === 'draft') {
+                @if (canInspect()) {
+                <a
+                  class="ag-btn ag-btn--secondary ag-btn--sm"
+                  [routerLink]="['/app/returns', item.id]"
+                  data-testid="return-open"
+                >
+                  Open
+                </a>
+                }
+                @if (canPost()) {
                 <button
                   type="button"
-                  class="icon-btn icon-btn--sm"
-                  (click)="toggleRowMenu(item.id, $event)"
-                  title="More actions"
-                  aria-label="More actions"
-                  [attr.aria-expanded]="openMenuReturnId() === item.id"
+                  class="ag-btn ag-btn--secondary ag-btn--sm"
+                  (click)="postDraftReturn(item)"
+                  [disabled]="postingId() === item.id"
+                  data-testid="return-post"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="1" />
-                    <circle cx="19" cy="12" r="1" />
-                    <circle cx="5" cy="12" r="1" />
-                  </svg>
+                  {{ postingId() === item.id ? 'Posting…' : 'Post' }}
                 </button>
-
-                @if (openMenuReturnId() === item.id) {
-                <div class="row-menu" role="menu">
+                <button
+                  type="button"
+                  class="ag-btn ag-btn--danger-outline ag-btn--sm"
+                  (click)="openDiscardDialog(item)"
+                  [disabled]="discarding() && itemToDiscard()?.id === item.id"
+                  data-testid="return-discard"
+                >
+                  Discard Draft
+                </button>
+                }
+              } @else {
+                @if (canInspect()) {
+                <a
+                  class="ag-btn ag-btn--secondary ag-btn--sm"
+                  [routerLink]="['/app/returns', item.id]"
+                  data-testid="return-open"
+                >
+                  Open
+                </a>
+                }
+                @if (canReverse() && item.status === 'posted') {
+                <div class="row-menu-wrap">
                   <button
                     type="button"
-                    class="row-menu__item row-menu__item--danger"
-                    role="menuitem"
-                    (click)="openReverseDialog(item)"
-                    data-testid="return-reverse"
+                    class="icon-btn icon-btn--sm"
+                    (click)="toggleRowMenu(item.id, $event)"
+                    title="More actions"
+                    aria-label="More actions"
+                    [attr.aria-expanded]="openMenuReturnId() === item.id"
                   >
                     <svg
-                      width="13"
-                      height="13"
+                      width="14"
+                      height="14"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -387,14 +390,40 @@
                       stroke-linecap="round"
                       stroke-linejoin="round"
                     >
-                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                      <path d="M3 3v5h5" />
+                      <circle cx="12" cy="12" r="1" />
+                      <circle cx="19" cy="12" r="1" />
+                      <circle cx="5" cy="12" r="1" />
                     </svg>
-                    Reverse Return
                   </button>
+
+                  @if (openMenuReturnId() === item.id) {
+                  <div class="row-menu" role="menu">
+                    <button
+                      type="button"
+                      class="row-menu__item row-menu__item--danger"
+                      role="menuitem"
+                      (click)="openReverseDialog(item)"
+                      data-testid="return-reverse"
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                      </svg>
+                      Reverse Return
+                    </button>
+                  </div>
+                  }
                 </div>
                 }
-              </div>
               }
             </div>
           </td>
@@ -483,24 +512,56 @@
       </div>
 
       <div class="return-card__actions">
-        @if (canInspect()) {
-        <a
-          class="ag-btn ag-btn--secondary ag-btn--sm return-card__btn"
-          [routerLink]="['/app/returns', item.id]"
-          data-testid="return-mobile-open"
-        >
-          Open
-        </a>
-        }
-        @if (canReverse() && item.status === 'posted') {
-        <button
-          type="button"
-          class="ag-btn ag-btn--secondary ag-btn--sm return-card__btn return-card__btn--reverse"
-          (click)="openReverseDialog(item)"
-          data-testid="return-mobile-reverse"
-        >
-          Reverse
-        </button>
+        @if (item.status === 'draft') {
+          @if (canInspect()) {
+          <a
+            class="ag-btn ag-btn--secondary ag-btn--sm return-card__btn"
+            [routerLink]="['/app/returns', item.id]"
+            data-testid="return-mobile-open"
+          >
+            Open
+          </a>
+          }
+          @if (canPost()) {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary ag-btn--sm return-card__btn"
+            (click)="postDraftReturn(item)"
+            [disabled]="postingId() === item.id"
+            data-testid="return-mobile-post"
+          >
+            {{ postingId() === item.id ? 'Posting…' : 'Post' }}
+          </button>
+          <button
+            type="button"
+            class="ag-btn ag-btn--danger-outline ag-btn--sm return-card__btn"
+            (click)="openDiscardDialog(item)"
+            [disabled]="discarding() && itemToDiscard()?.id === item.id"
+            data-testid="return-mobile-discard"
+          >
+            Discard Draft
+          </button>
+          }
+        } @else {
+          @if (canInspect()) {
+          <a
+            class="ag-btn ag-btn--secondary ag-btn--sm return-card__btn"
+            [routerLink]="['/app/returns', item.id]"
+            data-testid="return-mobile-open"
+          >
+            Open
+          </a>
+          }
+          @if (canReverse() && item.status === 'posted') {
+          <button
+            type="button"
+            class="ag-btn ag-btn--secondary ag-btn--sm return-card__btn return-card__btn--reverse"
+            (click)="openReverseDialog(item)"
+            data-testid="return-mobile-reverse"
+          >
+            Reverse
+          </button>
+          }
         }
       </div>
     </article>
@@ -529,6 +590,18 @@
     [requireReason]="true"
     (confirmed)="onConfirmReverse($event)"
     (dismiss)="onDismissReverse()"
+  />
+
+  <!-- Discard Draft Confirmation Modal Dialog -->
+  <agrivio-ui-confirm-dialog
+    [open]="discardDialogOpen()"
+    title="Discard draft return?"
+    message="This draft return will be permanently removed. This action cannot be undone."
+    confirmLabel="Discard Draft"
+    cancelLabel="Keep draft"
+    [danger]="true"
+    (confirmed)="onConfirmDiscard()"
+    (dismiss)="onDismissDiscard()"
   />
   }
 </section>

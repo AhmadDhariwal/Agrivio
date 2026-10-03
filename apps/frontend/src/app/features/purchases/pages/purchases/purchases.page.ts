@@ -20,6 +20,7 @@ import {
 } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 
 @Component({
   selector: 'agrivio-purchases-page',
@@ -31,6 +32,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    AppDatePipe,
   ],
   templateUrl: './purchases.page.html',
   styleUrl: './purchases.page.scss',
@@ -176,9 +178,19 @@ export class PurchasesPage {
     this.reload();
   }
 
-  statusLabel(status: string): string {
+  statusLabel(itemOrStatus: PurchaseRecord | string): string {
+    if (typeof itemOrStatus === 'object' && itemOrStatus !== null) {
+      if (
+        itemOrStatus.status === 'posted' &&
+        (itemOrStatus.replacementPurchaseId || itemOrStatus.correctionStatus === 'corrected')
+      ) {
+        return 'Corrected';
+      }
+      return this.statusLabel(itemOrStatus.status);
+    }
+    const status = itemOrStatus;
     if (status === 'draft') {
-      return 'Draft (unposted)';
+      return 'Draft';
     }
     if (status === 'posted') {
       return 'Posted';
@@ -189,12 +201,25 @@ export class PurchasesPage {
     return status;
   }
 
-  statusTone(status: string): 'warning' | 'success' | 'neutral' {
+  statusTone(itemOrStatus: PurchaseRecord | string): 'warning' | 'success' | 'danger' | 'neutral' {
+    if (typeof itemOrStatus === 'object' && itemOrStatus !== null) {
+      if (
+        itemOrStatus.status === 'posted' &&
+        (itemOrStatus.replacementPurchaseId || itemOrStatus.correctionStatus === 'corrected')
+      ) {
+        return 'warning';
+      }
+      return this.statusTone(itemOrStatus.status);
+    }
+    const status = itemOrStatus;
     if (status === 'draft') {
       return 'warning';
     }
     if (status === 'posted') {
       return 'success';
+    }
+    if (status === 'cancelled') {
+      return 'danger';
     }
     return 'neutral';
   }

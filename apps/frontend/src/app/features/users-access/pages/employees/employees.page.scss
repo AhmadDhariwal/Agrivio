@@ -218,8 +218,10 @@
   }
 
   &__label {
-    font-size: 11.5px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--ag-color-text-muted, #64748b);
     line-height: 1.2;
     white-space: nowrap;

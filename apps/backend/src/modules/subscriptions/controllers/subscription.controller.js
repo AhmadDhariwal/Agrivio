@@ -128,6 +128,57 @@ function createPlatformSubscriptionController(deps) {
       }
     },
 
+    async getPlan(req, res, next) {
+      try {
+        const data = await service.getPlanVersion(req.params.planCode, req.params.planVersion);
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async updatePlan(req, res, next) {
+      try {
+        const data = await service.updateDraftPlan(
+          req.params.planCode,
+          req.params.planVersion,
+          req.body,
+          { actorId: req.platformActor.actorId },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async activatePlan(req, res, next) {
+      try {
+        const data = await service.activatePlanVersion(
+          req.params.planCode,
+          req.params.planVersion,
+          req.body,
+          { actorId: req.platformActor.actorId },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
+    async retirePlan(req, res, next) {
+      try {
+        const data = await service.retirePlanVersion(
+          req.params.planCode,
+          req.params.planVersion,
+          req.body,
+          { actorId: req.platformActor.actorId },
+        );
+        sendSuccessEnvelope(res, 200, data);
+      } catch (error) {
+        next(error);
+      }
+    },
+
     async listSubscriptions(_req, res, next) {
       try {
         const data = await service.listPlatformSubscriptions();

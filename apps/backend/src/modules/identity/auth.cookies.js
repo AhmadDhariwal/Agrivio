@@ -31,7 +31,7 @@ function buildSessionCookie(options) {
     `${API_SESSION_COOKIE_NAME}=${encodeURIComponent(options.token)}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${options.sameSite ?? 'Lax'}`,
     `Max-Age=${options.maxAgeSeconds}`,
   ];
   if (options.secure) {
@@ -41,7 +41,13 @@ function buildSessionCookie(options) {
 }
 
 function buildClearedSessionCookie(options) {
-  const parts = [`${API_SESSION_COOKIE_NAME}=`, 'Path=/', 'HttpOnly', 'SameSite=Lax', 'Max-Age=0'];
+  const parts = [
+    `${API_SESSION_COOKIE_NAME}=`,
+    'Path=/',
+    'HttpOnly',
+    `SameSite=${options.sameSite ?? 'Lax'}`,
+    'Max-Age=0',
+  ];
   if (options.secure) {
     parts.push('Secure');
   }

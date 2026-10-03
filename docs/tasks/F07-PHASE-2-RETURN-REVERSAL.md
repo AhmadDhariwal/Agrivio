@@ -66,3 +66,8 @@ Existing F05/F07 P1 return draft/post/list paths are unchanged.
 
 * `R1-F07-006` manual account inflow/outflow/transfer
 * Shared correction conventions from this phase are the pattern for later account/expense corrections (`R1-F07-007`+)
+
+## Draft discard hardening follow-up (2026-09-28)
+
+* Sales, purchase, and without-invoice Return drafts retain the existing shared create/edit/post/reverse workflow. `DELETE /api/v1/returns/:id` now performs the draft-only delete and Audit append in one transaction with a version condition.
+* Posted/reversed returns remain immutable through DELETE and continue to use the existing corrective-transaction reversal flow. No model, permission, inventory, ledger, payable/receivable, or refund behavior changed.

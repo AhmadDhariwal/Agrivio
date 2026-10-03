@@ -3,36 +3,7 @@ import { Component, ElementRef, ViewChild, input, output } from '@angular/core';
 @Component({
   selector: 'agrivio-ui-search-input',
   standalone: true,
-  template: `
-    <div class="ag-search-wrap">
-      <span class="ag-search-wrap__icon" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-      </span>
-      <input
-        #searchInput
-        type="search"
-        class="ag-input ag-search-wrap__input"
-        [placeholder]="placeholder()"
-        [value]="value()"
-        [attr.aria-label]="ariaLabel()"
-        (input)="onInput($event)"
-        (keydown.escape)="onEscape($event)"
-      />
-      @if (value()) {
-        <button
-          type="button"
-          class="ag-search-wrap__clear"
-          [attr.aria-label]="clearLabel()"
-          (click)="clear()"
-        >
-          <span aria-hidden="true">&times;</span>
-        </button>
-      }
-    </div>
-  `,
+  templateUrl: './ui-search-input.component.html',
 })
 export class UiSearchInputComponent {
   @ViewChild('searchInput') inputRef?: ElementRef<HTMLInputElement>;

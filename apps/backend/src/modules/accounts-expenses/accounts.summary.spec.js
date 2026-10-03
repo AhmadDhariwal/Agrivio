@@ -18,6 +18,10 @@ describe('Accounts authoritative summary service', () => {
         amount: '0.00',
         currency: 'PKR',
       },
+      totalLiquidFunds: {
+        amount: '0.00',
+        currency: 'PKR',
+      },
     });
 
     // Create accounts in org-1
@@ -91,6 +95,10 @@ describe('Accounts authoritative summary service', () => {
         amount: '350.50',
         currency: 'PKR',
       },
+      totalLiquidFunds: {
+        amount: '350.50',
+        currency: 'PKR',
+      },
     });
 
     // Assert org-2 summary
@@ -100,6 +108,10 @@ describe('Accounts authoritative summary service', () => {
       activeAccounts: 1,
       inactiveAccounts: 0,
       totalBalance: {
+        amount: '999999.00',
+        currency: 'PKR',
+      },
+      totalLiquidFunds: {
         amount: '999999.00',
         currency: 'PKR',
       },

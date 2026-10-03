@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Subject,
@@ -9,7 +9,9 @@ import {
   distinctUntilChanged,
   forkJoin,
   of,
+  startWith,
   switchMap,
+  tap,
 } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SupplierPaymentsApi } from '../../data-access/supplier-payments.api';
@@ -28,8 +30,14 @@ import { AccountRecord } from '../../../accounts-expenses/models/accounts.models
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatSupplierOption,
+  formatAccountOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { hasRequiredValidator, fieldValidationMessage } from '../../../../shared/form/form-field.util';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { humanizeLedgerItem } from '../../../customer-payments/models/ledger-presentation.util';
 
 @Component({
   selector: 'agrivio-supplier-payment-form-page',
@@ -40,6 +48,7 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './supplier-payment-form.page.html',
   styleUrl: './supplier-payment-form.page.scss',
@@ -51,8 +60,10 @@ export class SupplierPaymentFormPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly formBuilder = inject(FormBuilder);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private readonly supplierSearchChanges = new Subject<string>();
+  private readonly knownSuppliers = new Map<string, SupplierRecord>();
 
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -64,6 +75,30 @@ export class SupplierPaymentFormPage {
   readonly accounts = signal<AccountRecord[]>([]);
   readonly ledgerItems = signal<SupplierLedgerEffectRecord[]>([]);
   readonly unpaidPurchases = signal<UnpaidPurchaseRecord[]>([]);
+
+  readonly humanizedLedgerItems = computed(() =>
+    this.ledgerItems().map((item) => humanizeLedgerItem(item)),
+  );
+
+  readonly supplierOptions = computed(() =>
+    this.suppliers().map((s) => formatSupplierOption(s)),
+  );
+  readonly accountOptions = computed(() =>
+    this.accounts().map((a) => formatAccountOption(a)),
+  );
+  readonly unpaidPurchaseOptions = computed(() =>
+    this.unpaidPurchases().map((p) => ({
+      value: p.id,
+      label:
+        p.targetType === 'supplier_opening_payable'
+          ? 'Opening payable'
+          : p.targetType === 'supplier_manual_payable'
+            ? p.reference || 'Manual payable adjustment'
+            : `${p.sequence || p.id}`,
+      description: `${p.purchaseDate} · Outstanding: ${p.outstanding.amount} PKR`,
+    })),
+  );
+
   readonly lastPayment = signal<SupplierPaymentRecord | null>(null);
 
   readonly canUseSupplierPayments = computed(
@@ -149,7 +184,10 @@ export class SupplierPaymentFormPage {
     if (!supplierId) {
       return 'Not selected';
     }
-    return this.suppliers().find((s) => s.id === supplierId)?.name ?? 'Not selected';
+    return (
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId)
+    )?.name ?? 'Not selected';
   });
 
   readonly selectedAccount = computed(() => {
@@ -175,7 +213,16 @@ export class SupplierPaymentFormPage {
       return '—';
     }
     const p = this.unpaidPurchases().find((item) => item.id === purchaseId);
-    return p ? `${p.sequence || p.id} (${p.outstanding.amount} PKR)` : '—';
+    if (!p) {
+      return '—';
+    }
+    const label =
+      p.targetType === 'supplier_opening_payable'
+        ? 'Opening payable'
+        : p.targetType === 'supplier_manual_payable'
+          ? p.reference || 'Manual payable adjustment'
+          : p.sequence || p.id;
+    return `${label} (${p.outstanding.amount} PKR)`;
   });
 
   readonly summaryAmount = computed(() => {
@@ -198,11 +245,15 @@ export class SupplierPaymentFormPage {
   });
 
   canViewField(id: string): boolean {
-    return this.capabilityService?.canViewField(`payments.supplier.fields.${id}`) ?? true;
+    return this.capabilityService && typeof this.capabilityService.canViewField === 'function'
+      ? this.capabilityService.canViewField(`payments.supplier.fields.${id}`)
+      : true;
   }
 
   canEditField(id: string): boolean {
-    return this.capabilityService?.canEditField(`payments.supplier.fields.${id}`) ?? true;
+    return this.capabilityService && typeof this.capabilityService.canEditField === 'function'
+      ? this.capabilityService.canEditField(`payments.supplier.fields.${id}`)
+      : true;
   }
 
   constructor() {
@@ -211,18 +262,30 @@ export class SupplierPaymentFormPage {
       return;
     }
 
-    this.suppliersApi.searchSupplierOptions('').subscribe((items) => {
-      this.suppliers.set(items.filter((item) => item.status === 'active'));
-    });
-
     this.supplierSearchChanges
       .pipe(
         debounceTime(300),
         distinctUntilChanged(),
+        startWith(''),
         switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.suppliers.set(items.filter((item) => item.status === 'active'));
+      });
+
+    const initialSupplierId = this.route?.snapshot?.queryParamMap?.get('supplierId');
+    if (initialSupplierId) {
+      this.suppliersApi.getSupplier(initialSupplierId).subscribe({
+        next: (sup) => {
+          this.knownSuppliers.set(sup.id, sup);
+          this.suppliers.update((list) =>
+            list.some((s) => s.id === sup.id) ? list : [sup, ...list],
+          );
+          this.form.controls.supplierId.setValue(sup.id);
+        },
+      });
+    }
 
     this.accountsApi.listAccountOptions().subscribe({
       next: (accounts) => {
@@ -237,6 +300,14 @@ export class SupplierPaymentFormPage {
 
     this.form.controls.supplierId.valueChanges
       .pipe(
+        tap((supplierId) => {
+          if (supplierId) {
+            const selected = this.suppliers().find((supplier) => supplier.id === supplierId);
+            if (selected) {
+              this.knownSuppliers.set(supplierId, selected);
+            }
+          }
+        }),
         switchMap((supplierId) => {
           this.ledgerItems.set([]);
           this.unpaidPurchases.set([]);
@@ -281,11 +352,25 @@ export class SupplierPaymentFormPage {
       });
   }
 
-  onSupplierSearch(event: Event): void {
-    const target = event.target;
-    if (target instanceof HTMLInputElement) {
-      this.supplierSearchChanges.next(target.value.trim());
+  supplierSelectedLabel(): string {
+    const supplierId = String(this.form.controls.supplierId.value ?? '').trim();
+    if (!supplierId) {
+      return '';
     }
+    const known =
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId);
+    return known?.name ?? '';
+  }
+
+  onSupplierSearch(eventOrQuery: Event | string): void {
+    const query =
+      typeof eventOrQuery === 'string'
+        ? eventOrQuery
+        : eventOrQuery?.target instanceof HTMLInputElement
+          ? eventOrQuery.target.value
+          : '';
+    this.supplierSearchChanges.next(query.trim());
   }
 
   setAllocationMode(mode: 'general' | 'invoice_specific'): void {

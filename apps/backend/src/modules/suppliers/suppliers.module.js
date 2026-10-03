@@ -15,7 +15,10 @@ const {
   createInMemoryIdempotencyStore,
   createMongooseIdempotencyStore,
 } = require('../../platform/idempotency/idempotency-service');
-const { formatMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
+const {
+  formatMoneyMinorUnits,
+  parseMoneyMinorUnits,
+} = require('../../platform/primitives/money-and-time');
 const {
   parseSupplierCreate,
   parseSupplierPatch,
@@ -58,6 +61,19 @@ function requireIdempotencyKey(idempotencyKey) {
   return idempotencyKey.trim();
 }
 
+function buildDerivedSupplierBalances(payable, advance) {
+  return {
+    payable,
+    advance,
+    netPayable: {
+      amount: formatMoneyMinorUnits(
+        parseMoneyMinorUnits(payable.amount) - parseMoneyMinorUnits(advance.amount),
+      ),
+      currency: 'PKR',
+    },
+  };
+}
+
 function createSuppliersService(deps) {
   const store = deps.store;
   const evaluateEntitlement = deps.evaluateEntitlement;
@@ -78,7 +94,7 @@ function createSuppliersService(deps) {
       ledgersService.sumSupplierPayable(organizationId, supplierId),
       ledgersService.sumSupplierAdvance(organizationId, supplierId),
     ]);
-    return toSupplierDto(record, { payable, advance });
+    return toSupplierDto(record, buildDerivedSupplierBalances(payable, advance));
   }
 
   return {
@@ -102,12 +118,11 @@ function createSuppliersService(deps) {
       ]);
       const zero = { amount: '0.00', currency: 'PKR' };
       return {
-        items: items.map((item) =>
-          toSupplierDto(item, {
-            payable: payableMap.get(String(item['_id'])) ?? zero,
-            advance: advanceMap.get(String(item['_id'])) ?? zero,
-          }),
-        ),
+        items: items.map((item) => {
+          const payable = payableMap.get(String(item['_id'])) ?? zero;
+          const advance = advanceMap.get(String(item['_id'])) ?? zero;
+          return toSupplierDto(item, buildDerivedSupplierBalances(payable, advance));
+        }),
         total,
       };
     },
@@ -138,7 +153,7 @@ function createSuppliersService(deps) {
       if (typeof deps.capabilityService?.assertSupplierCreateAllowed === 'function') {
         await deps.capabilityService.assertSupplierCreateAllowed(organizationId);
       }
-      const currentUsage = await store.countSuppliers(organizationId);
+      const currentUsage = await store.countSuppliers(organizationId, options.session ?? null);
       const entitlement = await assertCreationLimit(
         evaluateEntitlement,
         organizationId,
@@ -307,8 +322,15 @@ function createSuppliersService(deps) {
             };
             const derivedBalances =
               input.kind === 'payable'
-                ? { payable: postedMoney, advance: zero }
-                : { payable: zero, advance: postedMoney };
+                ? { payable: postedMoney, advance: zero, netPayable: postedMoney }
+                : {
+                    payable: zero,
+                    advance: postedMoney,
+                    netPayable: {
+                      amount: formatMoneyMinorUnits(-BigInt(input.amountMinorUnits)),
+                      currency: 'PKR',
+                    },
+                  };
             return toSupplierDto(updated, derivedBalances);
       };
 
@@ -344,8 +366,8 @@ function createSuppliersService(deps) {
       return store.countSuppliersWithOpening(organizationId);
     },
 
-    async countSuppliers(organizationId) {
-      return store.countSuppliers(organizationId);
+    async countSuppliers(organizationId, options = {}) {
+      return store.countSuppliers(organizationId, options.session ?? null);
     },
   };
 }

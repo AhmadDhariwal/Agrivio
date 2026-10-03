@@ -123,8 +123,14 @@ describe('Dashboard End-to-End Data Integrity Verification', () => {
     const mockCustomerBalances = {
       items: [{ partyId: 'cust-1', receivableMinorUnits: '45000' }], // 450.00
     };
+    const mockCustomerAdvances = {
+      items: [{ partyId: 'cust-2', advanceMinorUnits: '12500' }], // 125.00
+    };
     const mockSupplierBalances = {
       items: [{ partyId: 'supp-1', payableMinorUnits: '85000' }], // 850.00
+    };
+    const mockSupplierAdvances = {
+      items: [{ partyId: 'supp-2', advanceMinorUnits: '15000' }], // 150.00
     };
 
     const mockAlertSummaries = {
@@ -150,7 +156,9 @@ describe('Dashboard End-to-End Data Integrity Verification', () => {
 
     const paymentsService = {
       listCustomerReceivableBalances: async () => mockCustomerBalances,
+      listCustomerAdvanceBalances: async () => mockCustomerAdvances,
       listSupplierPayableBalances: async () => mockSupplierBalances,
+      listSupplierAdvanceBalances: async () => mockSupplierAdvances,
     };
 
     const alertsService = {
@@ -208,9 +216,15 @@ describe('Dashboard End-to-End Data Integrity Verification', () => {
 
     // 7. customerReceivables (450.00)
     expect(dashboard.customerReceivables).toEqual({ amount: '450.00', currency: 'PKR' });
+    expect(dashboard.totalReceivable).toEqual({ amount: '450.00', currency: 'PKR' });
+    expect(dashboard.totalCustomerAdvance).toEqual({ amount: '125.00', currency: 'PKR' });
+    expect(dashboard.netExposure).toEqual({ amount: '325.00', currency: 'PKR' });
 
     // 8. supplierPayables (850.00)
     expect(dashboard.supplierPayables).toEqual({ amount: '850.00', currency: 'PKR' });
+    expect(dashboard.totalSupplierPayable).toEqual({ amount: '850.00', currency: 'PKR' });
+    expect(dashboard.totalSupplierAdvance).toEqual({ amount: '150.00', currency: 'PKR' });
+    expect(dashboard.netSupplierPayable).toEqual({ amount: '700.00', currency: 'PKR' });
 
     // 9. cashBalances (5000.00)
     expect(dashboard.cashBalances).toEqual({ amount: '5000.00', currency: 'PKR' });

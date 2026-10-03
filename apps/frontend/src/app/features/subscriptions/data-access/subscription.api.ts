@@ -24,6 +24,16 @@ export interface SubscriptionPlanSummary {
   monthlyPriceMinorUnits: number | null;
   annualPriceMinorUnits: number | null;
   annualDiscountPercent: number | null;
+  annualSavingsMinorUnits?: number | null;
+  displayName?: string;
+  shortDescription?: string | null;
+  targetCustomer?: string | null;
+  catalogRevision?: string | null;
+  trialEligible?: boolean;
+  referencedAt?: string | null;
+  referenced?: boolean;
+  selectable?: boolean;
+  version?: number;
   limits: Record<string, number | null>;
   entitlements: Record<string, unknown>;
 }
@@ -60,6 +70,7 @@ export interface BillingRecordSummary {
   evidenceSize?: number | null;
   evidenceChecksum?: string | null;
   evidenceUploadedAt?: string | null;
+  subscriptionHealth?: 'available' | 'missing' | 'unavailable' | null;
 }
 
 export interface SubscriptionSummary {
@@ -284,6 +295,50 @@ export class SubscriptionApi {
             `${environment.publicApiBaseUrl}${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}`,
             body,
             {
+              withCredentials: true,
+              headers: new HttpHeaders({ [API_CSRF_HEADER]: csrfToken }),
+            },
+          )
+          .pipe(
+            map((response) => response.data),
+            tap(() => this.queryCache.invalidateTags(QUERY_CACHE_TAGS.subscriptionPlans)),
+          ),
+      ),
+    );
+  }
+
+  updatePlatformPlan(
+    plan: SubscriptionPlanSummary,
+    body: Record<string, unknown>,
+  ): Observable<SubscriptionPlanSummary> {
+    return this.mutatePlatformPlan(plan, '', body, 'PUT');
+  }
+
+  activatePlatformPlan(plan: SubscriptionPlanSummary): Observable<SubscriptionPlanSummary> {
+    return this.mutatePlatformPlan(plan, '/activate', { expectedVersion: plan.version ?? 1 });
+  }
+
+  retirePlatformPlan(
+    plan: SubscriptionPlanSummary,
+    reason: string,
+  ): Observable<SubscriptionPlanSummary> {
+    return this.mutatePlatformPlan(plan, '/retire', { expectedVersion: plan.version ?? 1, reason });
+  }
+
+  private mutatePlatformPlan(
+    plan: SubscriptionPlanSummary,
+    action: string,
+    body: Record<string, unknown>,
+    method: 'POST' | 'PUT' = 'POST',
+  ): Observable<SubscriptionPlanSummary> {
+    return this.authApi.ensureCsrf().pipe(
+      switchMap(({ csrfToken }) =>
+        this.http
+          .request<{ data: SubscriptionPlanSummary }>(
+            method,
+            `${environment.publicApiBaseUrl}${API_PLATFORM_SUBSCRIPTION_PLANS_PATH}/${plan.planCode}/${plan.planVersion}${action}`,
+            {
+              body,
               withCredentials: true,
               headers: new HttpHeaders({ [API_CSRF_HEADER]: csrfToken }),
             },

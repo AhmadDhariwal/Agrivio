@@ -1,0 +1,103 @@
+<div class="manual-adjustments" data-testid="manual-adjustments-view">
+  <!-- Header -->
+  <div class="adjustments-head">
+    <h2 class="adjustments-title" data-testid="manual-adjustments-title">Manual Financial Adjustments</h2>
+    <p class="adjustments-subtitle">
+      Cross-domain audit log of manual balance adjustments across accounts, customer balances, and supplier balances.
+    </p>
+  </div>
+
+  <!-- Adjustments Table -->
+  @if (!dataset()?.rows?.length) {
+    <div class="empty-wrap">
+      <agrivio-ui-empty-state
+        title="No manual adjustments found"
+        message="No manual financial adjustments match the selected filter criteria."
+      />
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table class="data-table" data-testid="manual-adjustments-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Domain</th>
+              <th scope="col">Entity</th>
+              <th scope="col">Balance Type</th>
+              <th scope="col" class="text-right">Before</th>
+              <th scope="col" class="text-right">Adjustment</th>
+              <th scope="col" class="text-right">After</th>
+              <th scope="col">Reason</th>
+              <th scope="col">Reference</th>
+              <th scope="col">User</th>
+              <th scope="col" class="text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of dataset()!.rows; track (row.id ?? $index)) {
+              <tr class="adjustment-row" [class.row-reversal]="row.status === 'reversal'">
+                <td class="date-cell">{{ row.businessDate | agDate }}</td>
+                <td>
+                  <span class="domain-badge" [ngClass]="'domain-badge--' + (row.domain || 'account')">
+                    {{ formatDomain(row.domain) }}
+                  </span>
+                </td>
+                <td>
+                  <strong class="entity-name">{{ row.entity?.name || row.entity?.id || '—' }}</strong>
+                </td>
+                <td>
+                  <span class="balance-type">{{ formatBalanceType(row.balanceType) }}</span>
+                </td>
+                <td class="text-right num-cell before-amount">
+                  @if (getBeforeAmount(row) !== undefined && getBeforeAmount(row) !== null) {
+                    PKR {{ formatMoney(getBeforeAmount(row)) }}
+                  } @else {
+                    <span class="text-muted" data-testid="null-before-placeholder">—</span>
+                  }
+                </td>
+                <td class="text-right num-cell adj-amount">
+                  <span [ngClass]="getDeltaColorClass(getDeltaAmount(row))">
+                    {{ formatSignedMoney(getDeltaAmount(row)) }}
+                  </span>
+                </td>
+                <td class="text-right num-cell after-amount">
+                  @if (getAfterAmount(row) !== undefined && getAfterAmount(row) !== null) {
+                    PKR {{ formatMoney(getAfterAmount(row)) }}
+                  } @else {
+                    <span class="text-muted" data-testid="null-after-placeholder">—</span>
+                  }
+                </td>
+                <td class="reason-cell">{{ row.reason || row.purpose || '—' }}</td>
+                <td><span class="ref-badge">{{ row.reference || '—' }}</span></td>
+                <td class="user-cell">{{ row.createdBy || '—' }}</td>
+                <td class="text-center">
+                  <span
+                    class="status-pill"
+                    [ngClass]="'status-pill--' + (row.status === 'reversal' ? 'reversal' : 'posted')"
+                  >
+                    {{ row.status === 'reversal' ? 'Reversal' : 'Posted' }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (total() > 0) {
+        <div class="pagination-container">
+          <agrivio-ui-pagination
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [total]="total()"
+            [disabled]="loading()"
+            (pageChange)="pageChange.emit($event)"
+            (pageSizeChange)="pageSizeChange.emit($event)"
+          />
+        </div>
+      }
+    </div>
+  }
+</div>

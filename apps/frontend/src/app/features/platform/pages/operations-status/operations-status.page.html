@@ -60,9 +60,17 @@
       <tbody>
         @for (item of backups(); track item.id) {
         <tr [attr.data-failed]="item.failureVisible">
-          <td>{{ item.recordedAt }}</td>
-          <td>{{ item.startedAt || '—' }} / {{ item.completedAt || '—' }}</td>
-          <td>{{ item.status }}</td>
+          <td class="text-nowrap">{{ item.recordedAt }}</td>
+          <td class="text-nowrap">{{ item.startedAt || '—' }} / {{ item.completedAt || '—' }}</td>
+          <td>
+            <span
+              class="ag-badge"
+              [class.ag-badge--success]="item.status === 'success'"
+              [class.ag-badge--danger]="item.status === 'failed'"
+            >
+              {{ item.status }}
+            </span>
+          </td>
           <td>{{ item.databaseName || '—' }}</td>
           <td>{{ item.filename || '—' }} · {{ formatBytes(item.fileSizeBytes) }}</td>
           <td>

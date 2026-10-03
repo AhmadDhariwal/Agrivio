@@ -45,7 +45,12 @@ function createPlatformOrganizationController(deps) {
           skip,
           pageSize,
         });
-        sendSuccessEnvelope(res, 200, result.items, { page, pageSize, total: result.total });
+        sendSuccessEnvelope(res, 200, result.items, {
+          page,
+          pageSize,
+          total: result.total,
+          ...(result.summary === undefined ? {} : { summary: result.summary }),
+        });
       } catch (error) {
         next(error);
       }

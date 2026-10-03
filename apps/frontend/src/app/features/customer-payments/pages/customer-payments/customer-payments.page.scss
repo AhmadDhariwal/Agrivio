@@ -143,29 +143,20 @@
     gap: 10px;
     width: 100%;
     min-width: 0;
+    flex-wrap: nowrap;
 
     @media (max-width: 767px) {
       display: none;
-    }
-
-    @media (max-width: 1024px) {
-      flex-wrap: wrap;
-      row-gap: 8px;
     }
   }
 
   &__left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: nowrap;
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
-
-    @media (max-width: 1024px) {
-      flex-wrap: wrap;
-      row-gap: 8px;
-    }
   }
 
   &__right {
@@ -173,10 +164,8 @@
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
-
-    @media (max-width: 1024px) {
-      margin-left: auto;
-    }
+    margin-left: auto;
+    white-space: nowrap;
   }
 
   &__mobile {
@@ -207,9 +196,9 @@
 
 .search-field {
   position: relative;
-  min-width: 160px;
-  flex: 1 1 auto;
-  max-width: 260px;
+  min-width: 120px;
+  flex: 1 1 150px;
+  max-width: 180px;
 
   &__icon {
     position: absolute;
@@ -276,7 +265,7 @@
 .date-filter-group {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: nowrap;
   flex-shrink: 0;
 }
@@ -300,10 +289,10 @@
 .date-mode-btn {
   border: none;
   background: transparent;
-  padding: 0 8px;
+  padding: 0 7px;
   height: 100%;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: #64748b;
   cursor: pointer;
@@ -346,11 +335,11 @@
 
 .date-field {
   position: relative;
-  width: 138px;
+  width: 125px;
   flex-shrink: 0;
 
   &--range {
-    width: 124px;
+    width: 112px;
   }
 
   &__icon {
@@ -367,11 +356,11 @@
   &__input {
     width: 100%;
     height: 34px;
-    padding: 0 4px 0 25px;
+    padding: 0 4px 0 22px;
     background: #f8fafc;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    font-size: 12.5px;
+    font-size: 12px;
     color: #0f172a;
     outline: none;
     font-family: var(--ag-font-sans);
@@ -407,13 +396,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   height: 34px;
-  padding: 0 12px;
+  padding: 0 9px;
   background: #065f46;
   border: 1px solid #065f46;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: #ffffff;
   cursor: pointer;
@@ -490,13 +479,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   height: 34px;
-  padding: 0 12px;
+  padding: 0 10px;
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: #475569;
   cursor: pointer;
@@ -526,31 +515,61 @@
 
 .prod-table {
   width: 100%;
-  min-width: 800px;
+  min-width: 1240px;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
   table-layout: fixed;
-  font-family: var(--ag-font-sans);
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
 
-  .col-date {
-    width: 140px;
-  }
-
-  .col-mode {
-    width: 180px;
+  /* Level 1: Descriptive Columns */
+  .col-customer {
+    width: 175px;
+    min-width: 160px;
+    max-width: 200px;
   }
 
   .col-notes {
-    width: auto;
+    width: 215px;
+    min-width: 180px;
+    max-width: 260px;
+  }
+
+  /* Level 2: Operational Data Columns (Fixed Stable Widths - NEVER Squeezed) */
+  .col-date {
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
+  }
+
+  .col-mode {
+    width: 115px;
+    min-width: 115px;
+    max-width: 115px;
+  }
+
+  .col-applied-to {
+    width: 170px;
+    min-width: 170px;
+    max-width: 170px;
   }
 
   .col-amount {
-    width: 160px;
+    width: 125px;
+    min-width: 125px;
+    max-width: 125px;
   }
 
   .col-status {
-    width: 110px;
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+  }
+
+  .col-actions {
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
   }
 
   &__th {
@@ -588,10 +607,20 @@
     color: #334155;
     vertical-align: middle;
 
-    &--notes {
+    &--applied-to,
+    &.cell-applied-to {
+      padding-right: 16px;
+      white-space: nowrap;
+    }
+
+    &--notes,
+    &.cell-notes {
+      max-width: 260px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      padding-left: 14px;
+      padding-right: 16px;
     }
 
     &.text-right {
@@ -631,12 +660,19 @@
 }
 
 .notes-text {
-  max-width: 320px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: inline-block;
   vertical-align: middle;
+}
+
+.cell-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-left: 12px;
 }
 
 .text-dark {
@@ -653,6 +689,7 @@
   color: #0f172a;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
@@ -802,5 +839,297 @@
   .mobile-only {
     display: flex;
   }
+}
+
+/* ==========================================================================
+   6. Customer Filter Dropdown
+   ========================================================================== */
+.customer-filter {
+  min-width: 130px;
+  max-width: 175px;
+  flex: 1 1 150px;
+
+  &--mobile {
+    max-width: 100%;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+}
+
+/* ==========================================================================
+   7. Customer cell (inline name + phone)
+   ========================================================================== */
+.customer-cell {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+
+  &__name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    line-height: 1.3;
+  }
+
+  &__link {
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--ag-color-primary, #065f46);
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ag-color-primary, #065f46);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+  }
+
+  &__phone {
+    font-size: 11.5px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    line-height: 1.2;
+    margin-top: 2px;
+  }
+}
+
+/* ==========================================================================
+   9. Applied-To Chip
+   ========================================================================== */
+.applied-to-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 100%;
+
+  // Receivable — blue tint
+  &--receivable {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
+
+  // Advance — amber tint
+  &--advance {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
+  // Both — purple tint
+  &--receivable_and_advance {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+  }
+
+  &--sm {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+}
+
+/* ==========================================================================
+   10. Mobile card – customer and chips layout
+   ========================================================================== */
+.payment-card {
+  &__customer {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 4px;
+  }
+
+  &__customer-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ag-color-text, #0f172a);
+    display: inline-block;
+  }
+
+  &__customer-link {
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--ag-color-primary, #065f46);
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ag-color-primary, #065f46);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+  }
+
+  &__customer-phone {
+    font-size: 11px;
+  }
+
+  &__chips {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+}
+
+/* ==========================================================================
+   11. Empty state clear-filter action button
+   ========================================================================== */
+.empty-filter-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.empty-clear-btn {
+  font-size: 13px;
+}
+
+/* ==========================================================================
+   12. Table Actions & Status Badges
+   ========================================================================== */
+.ag-btn--xs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 25px;
+  min-height: 25px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--ag-radius-sm, 4px);
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  border: 1px solid var(--ag-color-border, #e2e8f0);
+  background: var(--ag-color-surface, #ffffff);
+  color: var(--ag-color-text-muted, #475569);
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--ag-color-bg, #f8fafc);
+    color: var(--ag-color-text, #0f172a);
+    border-color: var(--ag-color-border-strong, #cbd5e1);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.cell-actions {
+  white-space: nowrap;
+  text-align: right;
+  padding-left: 6px !important;
+  padding-right: 12px !important;
+}
+
+.row-actions-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.row-action-btn--view {
+  &:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+  }
+}
+
+.card-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-action-reverse {
+  color: #b45309;
+  border-color: #fde68a;
+  background: #fffbeb;
+
+  &:hover {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+    box-shadow: 0 1px 2px rgba(185, 28, 28, 0.06);
+  }
+}
+
+.btn-action-correct {
+  color: var(--ag-color-primary, #065f46);
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+
+  &:hover {
+    background: #d1fae5;
+    color: #047857;
+    border-color: #6ee7b7;
+    box-shadow: 0 1px 2px rgba(4, 120, 87, 0.06);
+  }
+}
+
+.reversal-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 25px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  border-radius: var(--ag-radius-sm, 4px);
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
+  white-space: nowrap;
+}
+
+.corrected-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 25px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--ag-radius-sm, 4px);
+  font-family: var(--ag-font-sans, 'Manrope', 'Segoe UI', sans-serif);
+  white-space: nowrap;
 }
 

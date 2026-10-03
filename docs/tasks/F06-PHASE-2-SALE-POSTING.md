@@ -49,3 +49,14 @@
 ## Next
 
 * F06 P3: `R1-F06-007` credit-limit / expired-stock / negative-stock sale approvals
+
+## Post-audit customer accounting corrections (2026-09-20)
+
+* Sale posting now consumes available customer advance through paired signed receivable/advance ledger effects; the posted amount due is net of explicit payments and applied advance.
+* Sale cancellation appends linked opposite effects that restore consumed advance without editing historical ledger rows.
+* Both credit-limit evaluations use ledger exposure: current receivable minus available advance plus projected new credit.
+* General customer payments include the customer opening receivable as the oldest FIFO allocation target; excess still becomes customer advance.
+* Posted customer opening balances are corrected only through an idempotent reasoned reversal-and-replacement command with actor audit.
+* Dashboard financial summary now exposes total receivable, total customer advance, and net exposure (`receivable - advance`).
+
+Model review: existing tenant-owned `ledger_effects` and `payment_allocations` remain Payments/Ledgers-owned, organization-scoped, append-only, and transactionally written. The changes are backward-compatible enum extensions (`sourceType` and allocation `targetType`); they require no backfill or destructive migration. Existing source indexes remain valid, and real-Mongo tests cover the updated validators and allocation persistence.

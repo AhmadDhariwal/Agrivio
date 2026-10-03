@@ -256,6 +256,21 @@ export class BillingEvidencePage {
     return minorUnitsToDisplayPkr(minorUnits, true);
   }
 
+  formatPlanCount(value: number, singular: string, plural: string): string {
+    return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
+  }
+
+  planPolicyLabel(value: unknown): string {
+    return String(value ?? '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  planAuditLabel(value: unknown): string {
+    const match = /^(\d+)d$/.exec(String(value ?? ''));
+    return match ? `${match[1]}-day audit history` : 'Audit history configuration unavailable';
+  }
+
   formatDate(dateVal: unknown): string {
     if (!dateVal) return '—';
     try {

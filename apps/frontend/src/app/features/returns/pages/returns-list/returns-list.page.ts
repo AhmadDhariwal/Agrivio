@@ -2,7 +2,12 @@ import { Component, HostListener, computed, inject, signal } from '@angular/core
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ReturnsApi } from '../../data-access/returns.api';
-import { MoneyAmount, SalesReturnRecord, returnTypeLabel } from '../../models/returns.models';
+import {
+  MoneyAmount,
+  ReturnResolution,
+  SalesReturnRecord,
+  returnTypeLabel,
+} from '../../models/returns.models';
 import {
   BranchesWarehousesApi,
   WarehouseRecord,
@@ -19,7 +24,10 @@ import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pa
 import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-empty-state.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatWarehouseOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 @Component({
   selector: 'agrivio-returns-list-page',
@@ -33,6 +41,7 @@ import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
     UiEmptyStateComponent,
     UiModuleInfoComponent,
     UiConfirmDialogComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './returns-list.page.html',
   styleUrl: './returns-list.page.scss',
@@ -45,6 +54,7 @@ export class ReturnsListPage {
 
   readonly items = signal<SalesReturnRecord[]>([]);
   readonly warehouses = signal<WarehouseRecord[]>([]);
+  readonly warehouseOptions = computed(() => this.warehouses().map(formatWarehouseOption));
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -114,6 +124,12 @@ export class ReturnsListPage {
   readonly reverseDialogOpen = signal(false);
   readonly itemToReverse = signal<SalesReturnRecord | null>(null);
   readonly reversing = signal(false);
+
+  // Draft discard dialog state
+  readonly discardDialogOpen = signal(false);
+  readonly itemToDiscard = signal<SalesReturnRecord | null>(null);
+  readonly discarding = signal(false);
+  readonly postingId = signal<string | null>(null);
 
   // Row action menu state
   readonly openMenuReturnId = signal<string | null>(null);
@@ -198,9 +214,12 @@ export class ReturnsListPage {
     this.reload();
   }
 
-  onWarehouseChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.warehouseFilter.set(target.value);
+  onWarehouseChange(eventOrValue: Event | string): void {
+    const value =
+      typeof eventOrValue === 'string'
+        ? eventOrValue
+        : ((eventOrValue.target as HTMLSelectElement | null)?.value ?? '');
+    this.warehouseFilter.set(value);
     this.page.set(1);
     this.reload();
   }
@@ -288,45 +307,11 @@ export class ReturnsListPage {
   }
 
   formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '—';
-    const trimmed = dateStr.trim();
-    if (!trimmed) return '—';
-    const parts = trimmed.split('-');
-    if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
-      const year = parseInt(parts[0], 10);
-      const monthIndex = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const date = new Date(Date.UTC(year, monthIndex, day));
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          timeZone: 'UTC',
-        });
-      }
-    }
-    const d = new Date(trimmed);
-    if (isNaN(d.getTime())) return trimmed;
-    return d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return formatAppDate(dateStr);
   }
 
   formatDateTime(isoStr: string | null | undefined): string {
-    if (!isoStr) return '—';
-    const d = new Date(isoStr);
-    if (isNaN(d.getTime())) return String(isoStr);
-    return `${d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    })} ${d.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })}`;
+    return formatAppDateTime(isoStr);
   }
 
   formatMoney(total: MoneyAmount | null | undefined): string {
@@ -392,6 +377,77 @@ export class ReturnsListPage {
       });
   }
 
+  openDiscardDialog(item: SalesReturnRecord): void {
+    if (!this.canPost() || item.status !== 'draft' || this.discarding()) {
+      return;
+    }
+    this.closeRowMenu();
+    this.itemToDiscard.set(item);
+    this.discardDialogOpen.set(true);
+  }
+
+  onDismissDiscard(): void {
+    this.discardDialogOpen.set(false);
+    this.itemToDiscard.set(null);
+  }
+
+  onConfirmDiscard(): void {
+    const item = this.itemToDiscard();
+    if (!item || !this.canPost() || item.status !== 'draft' || this.discarding()) {
+      return;
+    }
+    this.discarding.set(true);
+    this.discardDialogOpen.set(false);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.api.discardReturn(item.id, item.version).subscribe({
+      next: () => {
+        this.items.update((rows) => rows.filter((row) => row.id !== item.id));
+        this.total.update((t) => Math.max(0, t - 1));
+        this.discarding.set(false);
+        this.itemToDiscard.set(null);
+        this.successMessage.set('Draft return was discarded.');
+      },
+      error: (error: unknown) => {
+        this.discarding.set(false);
+        this.itemToDiscard.set(null);
+        this.errorMessage.set(this.mapError(error, 'Unable to discard return draft.'));
+      },
+    });
+  }
+
+  postDraftReturn(item: SalesReturnRecord): void {
+    if (!this.canPost() || item.status !== 'draft' || this.postingId() !== null) {
+      return;
+    }
+    this.postingId.set(item.id);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    const idempotencyKey = `return-post-${item.id}-${Date.now()}`;
+    this.api
+      .postReturn(
+        item.id,
+        {
+          expectedVersion: item.version,
+          resolution: (item.resolution as ReturnResolution) || 'ledger_adjustment',
+          reason: item.reason || 'Post return draft',
+        },
+        idempotencyKey,
+      )
+      .subscribe({
+        next: (updated) => {
+          this.items.update((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+          this.postingId.set(null);
+          this.successMessage.set('Return posted successfully.');
+        },
+        error: (error: unknown) => {
+          this.postingId.set(null);
+          this.errorMessage.set(this.mapError(error, 'Unable to post return.'));
+        },
+      });
+  }
+
   @HostListener('document:click')
   onDocumentClick(): void {
     this.closeRowMenu();
@@ -407,12 +463,23 @@ export class ReturnsListPage {
   }
 
   private mapError(error: unknown, fallback: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallback;
+    if (error instanceof HttpErrorResponse) {
+      if (error.status === 409) {
+        return 'Return was modified or is no longer a draft.';
+      }
+      if (error.status === 403) {
+        return error.error?.error?.message ?? 'You do not have permission for this action.';
+      }
+      return error.error?.error?.message ?? fallback;
+    } else if (typeof error === 'object' && error !== null) {
+      const errObj = error as { status?: number; error?: { error?: { message?: string } } };
+      if (errObj.status === 409) {
+        return 'Return was modified or is no longer a draft.';
+      }
+      if (errObj.error?.error?.message) {
+        return errObj.error.error.message;
+      }
     }
-    if (error.status === 403) {
-      return error.error?.error?.message ?? 'You do not have permission for this action.';
-    }
-    return error.error?.error?.message ?? fallback;
+    return fallback;
   }
 }

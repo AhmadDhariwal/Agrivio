@@ -18,6 +18,7 @@ describe('BranchesPage', () => {
       invoicePrefix: 'MLT',
       status: 'active',
       version: 1,
+      isDefault: true,
     },
     {
       id: 'br-2',
@@ -122,6 +123,8 @@ describe('BranchesPage', () => {
     expect(el.textContent).toContain('Active');
     expect(el.textContent).toContain('Lodhran Branch');
     expect(el.textContent).toContain('Inactive');
+    expect(el.querySelector('[data-testid="branch-default-badge"]')?.textContent?.trim()).toBe('Default');
+    expect(el.querySelector('[data-testid="branch-default-badge-mobile"]')?.textContent?.trim()).toBe('Default');
   });
 
   it('supports view-only access: hides create and actions column for users without branches.manage', async () => {

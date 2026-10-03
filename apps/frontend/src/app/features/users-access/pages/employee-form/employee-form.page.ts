@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
@@ -223,6 +223,16 @@ export class EmployeeFormPage {
   });
 
   constructor() {
+    effect(() => {
+      const disabled = this.isReadOnlyField('role') || this.inspectOnly();
+      const control = this.form.controls.role;
+      if (disabled && control.enabled) {
+        control.disable({ emitEvent: false });
+      } else if (!disabled && control.disabled) {
+        control.enable({ emitEvent: false });
+      }
+    });
+
     this.form.controls.role.valueChanges.subscribe((role) => {
       this.selectedRole.set(role);
       this.pruneGrantsForRole(role);

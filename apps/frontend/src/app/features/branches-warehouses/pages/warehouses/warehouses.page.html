@@ -304,6 +304,15 @@
                 </svg>
               </div>
               <span class="wh-cell__name" [title]="item.name">{{ item.name }}</span>
+              @if (item.isDefault) {
+              <span
+                class="default-badge"
+                title="Default warehouse"
+                data-testid="warehouse-default-badge"
+              >
+                Default
+              </span>
+              }
             </div>
           </td>
 
@@ -466,7 +475,18 @@
     >
       <div class="wh-card__head">
         <div class="wh-card__name-group">
-          <h2 class="wh-card__name">{{ item.name }}</h2>
+          <div class="wh-card__title-row">
+            <h2 class="wh-card__name">{{ item.name }}</h2>
+            @if (item.isDefault) {
+            <span
+              class="default-badge"
+              title="Default warehouse"
+              data-testid="warehouse-default-badge-mobile"
+            >
+              Default
+            </span>
+            }
+          </div>
           @if (showCode() && item.code) {
           <span class="wh-card__code">{{ item.code }}</span>
           }

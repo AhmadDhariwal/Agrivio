@@ -1,5 +1,5 @@
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   EMPTY,
   Subject,
@@ -24,6 +24,11 @@ import { UiEmptyStateComponent } from '../../../../shared/ui/ui-empty-state/ui-e
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { UiSearchableDropdownComponent } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import {
   ExpiryInventoryRecord,
@@ -48,6 +53,7 @@ export interface StockStatusInfo {
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './stock-inquiry.page.html',
   styleUrl: './stock-inquiry.page.scss',
@@ -67,6 +73,7 @@ export class StockInquiryPage {
   private readonly locationsApi = inject(BranchesWarehousesApi);
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly reloadRequests = new Subject<boolean>();
@@ -84,6 +91,13 @@ export class StockInquiryPage {
   readonly productList = signal<ProductRecord[]>([]);
   readonly warehouseList = signal<WarehouseRecord[]>([]);
   readonly batchList = signal<ProductBatchRecord[]>([]);
+
+  readonly warehouseOptions = computed(() =>
+    this.warehouseList().map((w) => formatWarehouseOption(w)),
+  );
+  readonly productOptions = computed(() =>
+    this.productList().map((p) => formatProductOption(p)),
+  );
 
   // Filter Signals (Server-authoritative)
   readonly warehouseFilter = signal<string>('');
@@ -223,6 +237,47 @@ export class StockInquiryPage {
   constructor() {
     this.checkViewport();
     this.loadReferenceData();
+
+    // Query parameters deep-linking (e.g. from alerts)
+    const initialParams = this.route.snapshot.queryParamMap;
+    const initialProduct = initialParams.get('productId');
+    const initialWarehouse = initialParams.get('warehouseId');
+    const initialBatch = initialParams.get('batchId');
+    const initialSearch = initialParams.get('search');
+    if (initialProduct) this.productFilter.set(initialProduct);
+    if (initialWarehouse) this.warehouseFilter.set(initialWarehouse);
+    if (initialBatch) this.batchFilter.set(initialBatch);
+    if (initialSearch) this.search.set(initialSearch);
+
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const p = params.get('productId') ?? '';
+        const w = params.get('warehouseId') ?? '';
+        const b = params.get('batchId') ?? '';
+        const s = params.get('search') ?? '';
+        let changed = false;
+        if (p !== this.productFilter()) {
+          this.productFilter.set(p);
+          changed = true;
+        }
+        if (w !== this.warehouseFilter()) {
+          this.warehouseFilter.set(w);
+          changed = true;
+        }
+        if (b !== this.batchFilter()) {
+          this.batchFilter.set(b);
+          changed = true;
+        }
+        if (s !== this.search()) {
+          this.search.set(s);
+          changed = true;
+        }
+        if (changed) {
+          this.page.set(1);
+          this.reload();
+        }
+      });
 
     // Debounced search handling
     this.searchChanges
@@ -428,18 +483,27 @@ export class StockInquiryPage {
 
   onWarehouseChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
-    this.warehouseFilter.set(target.value);
+    this.onWarehouseSelected(target.value);
+  }
+
+  onWarehouseSelected(val: string | null): void {
+    this.warehouseFilter.set(val || '');
     this.page.set(1);
     this.reload();
   }
 
   onProductChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
-    this.productFilter.set(target.value);
+    this.onProductSelected(target.value);
+  }
+
+  onProductSelected(val: string | null): void {
+    const value = val || '';
+    this.productFilter.set(value);
     this.batchFilter.set('');
     this.page.set(1);
-    if (target.value) {
-      this.loadProductBatches(target.value);
+    if (value) {
+      this.loadProductBatches(value);
     } else {
       this.batchMap.set(new Map());
       this.batchList.set([]);

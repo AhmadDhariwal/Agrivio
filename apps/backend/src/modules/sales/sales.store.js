@@ -13,7 +13,7 @@ function isDuplicateKeyError(error) {
 
 function createMongooseSalesStore() {
   return {
-    async listSales(organizationId, filter = {}, pagination = {}) {
+    async listSales(organizationId, filter = {}, pagination = {}, session) {
       const query = { organizationId };
       if (filter.status) {
         query.status = filter.status;
@@ -45,7 +45,12 @@ function createMongooseSalesStore() {
       const { skip = 0, pageSize = 25 } = pagination;
       let find = SaleModel.find(query).sort({ saleDate: -1, createdAt: -1, _id: -1 });
       if (hasPagination) find = find.skip(skip).limit(pageSize);
-      const [total, items] = await Promise.all([SaleModel.countDocuments(query).exec(), find.lean().exec()]);
+      const count = SaleModel.countDocuments(query);
+      if (session) {
+        count.session(session);
+        find.session(session);
+      }
+      const [total, items] = await Promise.all([count.exec(), find.lean().exec()]);
       return { items, total };
     },
 

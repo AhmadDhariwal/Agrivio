@@ -27,7 +27,7 @@ function sumAllocations(allocations) {
     if (String(item.status ?? 'posted') !== 'posted') {
       continue;
     }
-    if (String(item.targetType) !== 'purchase') {
+    if (!['purchase', 'supplier_opening_payable', 'supplier_manual_payable'].includes(String(item.targetType))) {
       continue;
     }
     total += toBigInt(item.allocatedAmountMinorUnits);
@@ -60,6 +60,20 @@ function reconcileSupplierLedgerState(input) {
   const advanceSum = sumByEffectKind(effects, 'supplier_advance');
   const allocationSum = sumAllocations(allocations);
   const accountMovementSum = sumAccountMovements(accountMovements);
+  const netPayable = payableSum - advanceSum;
+  const payableTargetTotal = input.payableTargetTotalMinorUnits === undefined
+    ? null
+    : toBigInt(input.payableTargetTotalMinorUnits);
+
+  if (payableSum > 0n && advanceSum > 0n) {
+    findings.push({
+      code: 'UNALLOCATED_SUPPLIER_ADVANCE_WITH_PAYABLE',
+      payableMinorUnits: payableSum.toString(),
+      advanceMinorUnits: advanceSum.toString(),
+      netPayableMinorUnits: netPayable.toString(),
+      message: 'Unallocated supplier advance coexists with supplier payable',
+    });
+  }
 
   if (
     input.expectedPayableMinorUnits !== undefined &&
@@ -70,6 +84,15 @@ function reconcileSupplierLedgerState(input) {
       code: 'SUPPLIER_PAYABLE_MISMATCH',
       expectedMinorUnits: String(input.expectedPayableMinorUnits),
       actualMinorUnits: payableSum.toString(),
+    });
+  }
+
+  if (payableTargetTotal !== null && payableTargetTotal !== payableSum) {
+    findings.push({
+      code: 'SUPPLIER_PAYABLE_TARGET_MISMATCH',
+      ledgerPayableMinorUnits: payableSum.toString(),
+      targetPayableMinorUnits: payableTargetTotal.toString(),
+      message: 'Supplier payable ledger does not match remaining allocatable payable targets',
     });
   }
 
@@ -133,8 +156,10 @@ function reconcileSupplierLedgerState(input) {
     ok: findings.length === 0,
     payableMinorUnits: payableSum.toString(),
     advanceMinorUnits: advanceSum.toString(),
+    netPayableMinorUnits: netPayable.toString(),
     allocationTotalMinorUnits: allocationSum.toString(),
     accountMovementTotalMinorUnits: accountMovementSum.toString(),
+    payableTargetTotalMinorUnits: payableTargetTotal?.toString() ?? null,
     findings,
   };
 }

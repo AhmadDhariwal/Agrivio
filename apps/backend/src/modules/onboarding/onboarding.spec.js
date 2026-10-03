@@ -17,8 +17,19 @@ import { createOnboardingModule } from './onboarding.module';
 import { createAuthModule } from '../identity/auth.module';
 import { createBridgedAuthStore } from '../identity/auth.bridge-store';
 import { hashToken } from '../identity/crypto-tokens';
+import onboardingValidationModule from './onboarding.validation';
+
+const { parseActivationBody } = onboardingValidationModule;
 
 describe('F02 Phase 1 organization onboarding', () => {
+  it('preserves the activation token exactly while validating blank input', () => {
+    const token = ' opaque+token/with=reserved_%2B-and_base64url-_ ';
+    expect(parseActivationBody({ token, password: 'a-strong-passphrase' }).token).toBe(token);
+    expect(() => parseActivationBody({ token: '   ', password: 'a-strong-passphrase' })).toThrow(
+      'Validation failed',
+    );
+  });
+
   it('accepts a valid public activation request and rejects invalid payloads', async () => {
     const { server, baseUrl, store, jar } = await boot();
 
@@ -83,7 +94,7 @@ describe('F02 Phase 1 organization onboarding', () => {
   });
 
   it('approves and rejects with correctly named routes and issues hashed activation tokens', async () => {
-    const { server, baseUrl, store, jar } = await boot();
+    const { server, baseUrl, store, subscriptionStore, jar } = await boot();
 
     try {
       const csrf = await issueCsrf(baseUrl, jar);
@@ -100,6 +111,13 @@ describe('F02 Phase 1 organization onboarding', () => {
         jar,
       );
       const organizationId = created.body.data.organizationId;
+      const pendingSubscription =
+        await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
+      expect(pendingSubscription).toMatchObject({
+        status: 'pending_approval',
+        planCode: 'Starter',
+        planVersion: 1,
+      });
 
       const forbiddenProd = await fetchJson(
         baseUrl,
@@ -140,6 +158,14 @@ describe('F02 Phase 1 organization onboarding', () => {
       expect(storedToken).not.toBeNull();
       expect(storedToken?.tokenHash).toBe(tokenHash);
       expect(JSON.stringify(storedToken)).not.toContain(approved.body.data.activationToken);
+      const approvedOrganization = await store.findOrganizationById(organizationId);
+      const trialSubscription =
+        await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
+      expect(trialSubscription?.status).toBe('trial');
+      expect(
+        new Date(trialSubscription.trialEndsAt).getTime() -
+          new Date(approvedOrganization.approvedAt).getTime(),
+      ).toBe(14 * 24 * 60 * 60 * 1000);
 
       const rejectedCreate = await fetchJson(
         baseUrl,
@@ -168,6 +194,24 @@ describe('F02 Phase 1 organization onboarding', () => {
       expect(rejected.status).toBe(200);
       expect(rejected.body.data.status).toBe('rejected');
       expect(rejected.body.data.reason).toBe('Incomplete paperwork');
+
+      const organizations = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_ORGANIZATIONS_PATH}?status=approved&page=1&pageSize=1`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin-1' },
+        jar,
+      );
+      expect(organizations.status).toBe(200);
+      expect(organizations.body.data).toHaveLength(1);
+      expect(organizations.body.data[0].status).toBe('approved');
+      expect(organizations.body.meta).toMatchObject({
+        page: 1,
+        pageSize: 1,
+        total: 1,
+        summary: { total: 2, active: 1, suspended: 0, trial: 1 },
+      });
     } finally {
       await close(server);
     }
@@ -355,6 +399,58 @@ describe('F02 Phase 1 organization onboarding', () => {
     }
   });
 
+  it('keeps platform organization detail available when subscription data is missing', async () => {
+    const { server, baseUrl, store, jar } = await boot();
+    try {
+      const owner = await store.insertUser(null, {
+        email: 'missing-subscription@example.com',
+        emailNormalized: 'missing-subscription@example.com',
+        displayName: 'Recovery Owner',
+        status: 'pending_activation',
+        version: 1,
+      });
+      const organization = await store.insertOrganization(null, {
+        name: 'Missing Subscription Detail',
+        nameNormalized: 'missing subscription detail',
+        timezone: 'Asia/Karachi',
+        status: 'approved',
+        approvedAt: new Date('2026-08-01T00:00:00.000Z'),
+        applicantFingerprint: 'missing-subscription-detail-fixture',
+        ownerUserId: owner._id,
+        version: 1,
+      });
+      await store.insertMembership(null, {
+        organizationId: organization._id,
+        userId: owner._id,
+        role: 'Owner',
+        status: 'active',
+        conditionalPermissionGrants: [],
+        version: 1,
+      });
+
+      const detail = await fetchJson(
+        baseUrl,
+        'GET',
+        `${API_PLATFORM_ORGANIZATIONS_PATH}/${organization._id}`,
+        undefined,
+        { [API_PLATFORM_ACTOR_HEADER]: 'super-admin-1' },
+        jar,
+      );
+      expect(detail.status).toBe(200);
+      expect(detail.body.data.subscription).toBeNull();
+      expect(detail.body.data.owner).toMatchObject({
+        email: 'missing-subscription@example.com',
+      });
+      expect(detail.body.data.members.total).toBe(1);
+      expect(detail.body.data.audit).toBeDefined();
+      expect(detail.body.data.operationalWarnings).toEqual([
+        { code: 'subscription_missing', message: 'No subscription record found.' },
+      ]);
+    } finally {
+      await close(server);
+    }
+  });
+
   it('blocks X-Platform-Actor in production', async () => {
     const onboarding = createOnboardingModule({
       config: { nodeEnv: 'production' },
@@ -431,6 +527,7 @@ async function boot(options = {}) {
     server,
     baseUrl: `http://127.0.0.1:${address.port}`,
     store: onboarding.store,
+    subscriptionStore: app.agrivio.subscriptions.store,
     onboardingService: onboarding.onboardingService,
     jar: createCookieJar(),
   };

@@ -253,6 +253,14 @@ export const CANONICAL_NAVIGATION: readonly NavEntry[] = [
           testId: 'nav-customers',
         },
         {
+          id: 'partners.customer-loans',
+          label: 'Customer loans',
+          route: '/app/customer-loans',
+          permission: 'customers.view',
+          capabilityKey: 'customers',
+          testId: 'nav-customer-loans',
+        },
+        {
           id: 'partners.suppliers',
           label: 'Suppliers',
           route: '/app/suppliers',

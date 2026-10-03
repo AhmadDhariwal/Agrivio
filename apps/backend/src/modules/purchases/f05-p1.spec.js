@@ -101,7 +101,7 @@ describe('F05 P1 supplier payments, accounts, and purchase drafts', () => {
         amount: { amount: '200.00', currency: 'PKR' },
         paymentDate: '2026-08-11',
         allocationMode: 'general',
-        notes: 'advance foundation',
+        notes: 'opening payable allocation',
       };
       const paymentKey = 'sup-pay-1';
       const payment = await fetchJson(
@@ -118,7 +118,7 @@ describe('F05 P1 supplier payments, accounts, and purchase drafts', () => {
       expect(payment.status).toBe(201);
       expect(payment.body.data.status).toBe('posted');
       expect(payment.body.data.allocations).toHaveLength(1);
-      expect(payment.body.data.allocations[0].targetType).toBe('supplier_advance');
+      expect(payment.body.data.allocations[0].targetType).toBe('supplier_opening_payable');
       expect(payment.body.data.allocations[0].allocatedAmount.amount).toBe('200.00');
 
       const paymentReplay = await fetchJson(
@@ -174,8 +174,9 @@ describe('F05 P1 supplier payments, accounts, and purchase drafts', () => {
         jar,
       );
       expect(supplierAfter.status).toBe(200);
-      expect(supplierAfter.body.data.derivedBalances.payable.amount).toBe('500.00');
-      expect(supplierAfter.body.data.derivedBalances.advance.amount).toBe('200.00');
+      expect(supplierAfter.body.data.derivedBalances.payable.amount).toBe('300.00');
+      expect(supplierAfter.body.data.derivedBalances.advance.amount).toBe('0.00');
+      expect(supplierAfter.body.data.derivedBalances.netPayable.amount).toBe('300.00');
 
       const accountAfter = await fetchJson(
         baseUrl,
@@ -589,6 +590,29 @@ async function seedPlan(baseUrl, jar) {
       planCode: 'Starter',
       activate: true,
       monthlyPriceMinorUnits: 1000,
+      annualPriceMinorUnits: 10000,
+      annualDiscountPercent: 16.67,
+      displayName: 'Starter',
+      shortDescription: 'Test plan',
+      targetCustomer: 'Test organization',
+      catalogRevision: 'test-catalog',
+      trialEligible: true,
+      limits: {
+        products: 1000,
+        activeUsers: 1000,
+        branches: 1000,
+        warehouses: 1000,
+        customers: 1000,
+        suppliers: 1000,
+      },
+      entitlements: {
+        imports: true,
+        reportsExports: true,
+        auditHistory: '90d',
+        backupPolicyRef: 'test',
+        dedicatedCloudEligible: false,
+        supportLevelRef: 'test',
+      },
     },
     {
       [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar),

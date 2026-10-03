@@ -16,6 +16,7 @@ describe('WarehousesPage', () => {
       code: 'WH-MLT-01',
       status: 'active',
       version: 1,
+      isDefault: true,
     },
     {
       id: 'wh-2',
@@ -101,6 +102,9 @@ describe('WarehousesPage', () => {
     expect(text).toContain('Raw Material Store (Lodhran)');
     expect(text).toContain('WH-LOD-01');
     expect(text).toContain('Inactive');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="warehouse-default-badge"]')?.textContent?.trim()).toBe('Default');
+    expect(el.querySelector('[data-testid="warehouse-default-badge-mobile"]')?.textContent?.trim()).toBe('Default');
   });
 
   it('dispatches server queries on status filter and search changes', () => {

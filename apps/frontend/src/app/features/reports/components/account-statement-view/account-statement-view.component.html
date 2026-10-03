@@ -1,0 +1,135 @@
+<div class="account-statement" data-testid="account-statement-view">
+  <!-- Title & Summary Cards -->
+  <div class="statement-head">
+    <h2 class="statement-title" data-testid="statement-title">
+      {{ dataset()?.title ?? 'Account Statement' }}
+    </h2>
+  </div>
+
+  <!-- Authoritative Summary Cards -->
+  <section class="summary-cards-row" aria-label="Statement Summary" data-testid="statement-summary-cards">
+    <div class="kpi-card" data-testid="card-statement-opening">
+      <span class="kpi-label">Opening Balance</span>
+      <strong class="kpi-value" data-testid="statement-opening-balance">
+        PKR {{ formatMoney(dataset()?.openingBalance?.amount) }}
+      </strong>
+      <span class="kpi-meta">Before period start</span>
+    </div>
+
+    <div class="kpi-card" data-testid="card-statement-inflow">
+      <span class="kpi-label">Total Inflow</span>
+      <strong class="kpi-value kpi-value--inflow" data-testid="statement-total-inflow">
+        + PKR {{ formatMoney(dataset()?.periodInflow?.amount) }}
+      </strong>
+      <span class="kpi-meta">Money added / received</span>
+    </div>
+
+    <div class="kpi-card" data-testid="card-statement-outflow">
+      <span class="kpi-label">Total Outflow</span>
+      <strong class="kpi-value kpi-value--outflow" data-testid="statement-total-outflow">
+        − PKR {{ formatMoney(dataset()?.periodOutflow?.amount) }}
+      </strong>
+      <span class="kpi-meta">Money withdrawn / paid</span>
+    </div>
+
+    <div class="kpi-card" data-testid="card-statement-net">
+      <span class="kpi-label">Net Change</span>
+      <strong class="kpi-value" data-testid="statement-net-change">
+        PKR {{ formatSignedMoney(dataset()?.periodNetChange?.amount) }}
+      </strong>
+      <span class="kpi-meta">Inflow less outflow</span>
+    </div>
+
+    <div class="kpi-card kpi-card--closing" data-testid="card-statement-closing">
+      <span class="kpi-label">Closing Balance</span>
+      <strong class="kpi-value kpi-value--large" data-testid="statement-closing-balance">
+        PKR {{ formatMoney(dataset()?.closingBalance?.amount) }}
+      </strong>
+      <span class="kpi-meta">End of period balance</span>
+    </div>
+  </section>
+
+  <!-- Statement Movements Table -->
+  @if (!dataset()?.rows?.length) {
+    <div class="empty-wrap">
+      <agrivio-ui-empty-state
+        title="No movements recorded"
+        message="No financial movements match the selected account and period filters."
+      />
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table class="data-table" data-testid="account-statement-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Time</th>
+              <th scope="col">Type</th>
+              <th scope="col">Reference</th>
+              <th scope="col">Description</th>
+              <th scope="col" class="text-right">In (PKR)</th>
+              <th scope="col" class="text-right">Out (PKR)</th>
+              <th scope="col" class="text-right">Running Balance</th>
+              <th scope="col" class="text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of dataset()!.rows; track (row.id ?? $index)) {
+              <tr class="statement-row" [class.row-reversed]="row.status === 'reversed'">
+                <td class="date-cell">{{ row.businessDate | agDate }}</td>
+                <td class="time-cell">{{ row.postedAt | agTime }}</td>
+                <td>
+                  <span class="type-tag">{{ row.sourceLabel ?? row.sourceType }}</span>
+                </td>
+                <td>
+                  <span class="ref-badge">{{ row.reference || '—' }}</span>
+                </td>
+                <td class="desc-cell">{{ row.description || '—' }}</td>
+                <td class="text-right num-cell inflow-num">
+                  @if (hasAmount(getInflow(row))) {
+                    + {{ formatMoney(getInflow(row)) }}
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-right num-cell outflow-num">
+                  @if (hasAmount(getOutflow(row))) {
+                    − {{ formatMoney(getOutflow(row)) }}
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-right num-cell running-balance-cell">
+                  PKR {{ formatMoney(getRunningBalance(row)) }}
+                </td>
+                <td class="text-center">
+                  <span
+                    class="status-badge"
+                    [ngClass]="'status-badge--' + (row.status === 'reversed' ? 'reversed' : 'posted')"
+                  >
+                    {{ row.status === 'reversed' ? 'Reversed' : 'Posted' }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (total() > 0) {
+        <div class="pagination-container">
+          <agrivio-ui-pagination
+            [page]="page()"
+            [pageSize]="pageSize()"
+            [total]="total()"
+            [disabled]="loading()"
+            (pageChange)="pageChange.emit($event)"
+            (pageSizeChange)="pageSizeChange.emit($event)"
+          />
+        </div>
+      }
+    </div>
+  }
+</div>

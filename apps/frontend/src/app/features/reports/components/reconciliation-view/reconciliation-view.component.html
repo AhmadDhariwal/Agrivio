@@ -1,0 +1,166 @@
+<div class="reconciliation-view" data-testid="reconciliation-report-view">
+  <!-- Header -->
+  <div class="report-head">
+    <div class="head-info">
+      <h2 class="report-title" data-testid="reconciliation-title">Financial Reconciliation Diagnostics</h2>
+      <p class="report-subtitle">
+        Integrity verification across ledger balances, double-entry transfer pairings, and advance constraints.
+      </p>
+    </div>
+    <div class="overall-status" data-testid="overall-reconciliation-status">
+      <span class="status-label">Overall Status:</span>
+      <span class="status-badge" [class]="'badge-' + normalizeStatus(dataset()?.status)">
+        {{ dataset()?.status || 'Not Checked / Unavailable' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Diagnostic Philosophy Banner -->
+  <div class="diagnostic-banner" role="note" data-testid="reconciliation-notice">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+    <div class="banner-body">
+      <strong>Diagnostic Mode:</strong>
+      This diagnostic view identifies discrepancies against double-entry invariants and domain bounds.
+      Reconciliation findings require verified audit investigation and source workflow adjustment. Automatic arbitrary overrides are strictly prohibited.
+    </div>
+  </div>
+
+  <!-- Summary KPI Grid -->
+  <div class="summary-grid" data-testid="reconciliation-summary-grid">
+    <div class="summary-card card-reconciled" data-testid="reconciled-count-card">
+      <span class="card-label">Checks Reconciled</span>
+      <span class="card-value">{{ reconciledCount() }}</span>
+      <span class="card-caption">Double-entry constraints verified</span>
+    </div>
+
+    <div class="summary-card card-mismatches" data-testid="mismatches-count-card">
+      <span class="card-label">Mismatches Detected</span>
+      <span class="card-value" [class.val-danger]="mismatchCount() > 0">{{ mismatchCount() }}</span>
+      <span class="card-caption">Discrepancies requiring investigation</span>
+    </div>
+
+    <div class="summary-card card-not-checked" data-testid="not-checked-count-card">
+      <span class="card-label">Not Checked / Unavailable</span>
+      <span class="card-value">{{ notCheckedCount() }}</span>
+      <span class="card-caption">Audited via owning workflows</span>
+    </div>
+
+    <div class="summary-card card-total-findings" data-testid="total-findings-card">
+      <span class="card-label">Total Findings</span>
+      <span class="card-value">{{ dataset()?.totals?.['findings'] ?? dataset()?.rows?.length ?? 0 }}</span>
+      <span class="card-caption">Active anomaly line items</span>
+    </div>
+  </div>
+
+  <!-- Diagnostic Checks Overview -->
+  @if (dataset()?.checks?.length) {
+    <div class="section-card" data-testid="reconciliation-checks-section">
+      <h3 class="section-heading">Integrity Checks Status</h3>
+      <div class="checks-grid">
+        @for (chk of dataset()!.checks!; track chk.code) {
+          <div class="check-item" [attr.data-testid]="'check-' + chk.code">
+            <div class="check-header">
+              <span class="check-title">{{ getHumanCheckName(chk.code) }}</span>
+              <span class="check-badge" [class]="'badge-' + normalizeStatus(chk.status)">
+                {{ chk.status }}
+              </span>
+            </div>
+            <div class="check-code-detail">{{ chk.code }}</div>
+            @if (chk.reason) {
+              <p class="check-reason">{{ chk.reason }}</p>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Findings Table Section -->
+  <div class="section-card findings-section" data-testid="reconciliation-findings-section">
+    <div class="findings-header">
+      <h3 class="section-heading">
+        Findings & Discrepancies
+        @if (dataset()?.rows?.length) {
+          <span class="count-tag">{{ dataset()!.rows.length }}</span>
+        }
+      </h3>
+    </div>
+
+    @if (!dataset()?.rows?.length) {
+      <div class="empty-wrap" data-testid="no-findings-banner">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+        <h4 class="empty-title">No Mismatches Detected</h4>
+        <p class="empty-text">All active automated consistency checks passed without finding any discrepancies.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="data-table" data-testid="reconciliation-findings-table">
+            <thead>
+              <tr>
+                <th scope="col">Domain</th>
+                <th scope="col">Reference / Entity</th>
+                <th scope="col">Check</th>
+                <th scope="col">Expected</th>
+                <th scope="col">Actual</th>
+                <th scope="col" class="text-right">Difference</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Guidance</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (finding of dataset()!.rows; track (finding.code + '-' + finding.reference + '-' + $index)) {
+                <tr class="finding-row" [class.severity-error]="finding.severity === 'error'">
+                  <td>
+                    <span class="domain-tag">{{ formatDomain(finding.domain) }}</span>
+                  </td>
+                  <td class="ref-cell">
+                    <strong>{{ finding.reference || '—' }}</strong>
+                  </td>
+                  <td>
+                    <div class="check-cell-content">
+                      <span class="check-main-name">{{ getHumanCheckName(finding.code) }}</span>
+                      <span class="check-sub-code">{{ finding.code }}</span>
+                    </div>
+                  </td>
+                  <td class="criteria-cell">{{ finding.expected }}</td>
+                  <td class="criteria-cell actual-value">{{ finding.actual }}</td>
+                  <td class="text-right num-cell font-bold">
+                    {{ finding.difference ?? '—' }}
+                  </td>
+                  <td>
+                    <span class="severity-badge" [class]="'severity-' + (finding.severity || 'warning')">
+                      {{ finding.severity || 'Warning' }}
+                    </span>
+                  </td>
+                  <td class="guidance-cell">
+                    {{ finding.remediation || finding.guidance || 'Inspect source transactions and verify lineage.' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (dataset()?.pagination && dataset()!.pagination!.totalPages > 1) {
+          <div class="pagination-footer">
+            <agrivio-ui-pagination
+              [page]="dataset()!.pagination!.page"
+              [pageSize]="dataset()!.pagination!.pageSize"
+              [total]="dataset()!.pagination!.total"
+              (pageChange)="pageChange.emit($event)"
+            />
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

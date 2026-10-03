@@ -42,6 +42,14 @@ describe('LoginPage', () => {
     });
     page.submit();
 
+    expect(page.form.getRawValue()).toEqual({
+      email: 'owner@example.com',
+      password: 'a-strong-passphrase',
+    });
+    expect(page.form.disabled).toBe(true);
+    expect(page.submitting()).toBe(true);
+    page.submit();
+
     const csrf = http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/csrf`);
     expect(csrf.request.method).toBe('POST');
     csrf.flush({ data: { csrfToken: 'csrf-test' }, requestId: 'test' });
@@ -69,5 +77,37 @@ describe('LoginPage', () => {
       requestId: 'test',
     });
     expect(page.successMessage()).toContain('Signed in');
+    expect(page.form.getRawValue().password).toBe('a-strong-passphrase');
+    expect(page.form.disabled).toBe(true);
+    http.expectNone(`${environment.publicApiBaseUrl}/api/v1/auth/session`);
+  });
+
+  it('keeps values stable while pending and re-enables the form after login failure', () => {
+    const page = fixture.componentInstance;
+    page.form.setValue({
+      email: 'owner@example.com',
+      password: 'a-strong-passphrase',
+    });
+
+    page.submit();
+    http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/csrf`).flush({
+      data: { csrfToken: 'csrf-test' },
+      requestId: 'test',
+    });
+
+    expect(page.form.disabled).toBe(true);
+    expect(page.form.getRawValue().password).toBe('a-strong-passphrase');
+    http.expectOne(`${environment.publicApiBaseUrl}/api/v1/auth/login`).flush(
+      { error: { code: 'UNAUTHORIZED', message: 'Authentication failed' } },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+
+    expect(page.submitting()).toBe(false);
+    expect(page.form.enabled).toBe(true);
+    expect(page.form.getRawValue()).toEqual({
+      email: 'owner@example.com',
+      password: 'a-strong-passphrase',
+    });
+    expect(page.errorMessage()).toBe('Sign-in failed. Check your email and password.');
   });
 });

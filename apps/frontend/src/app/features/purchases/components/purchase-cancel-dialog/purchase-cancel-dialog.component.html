@@ -1,0 +1,184 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Cancel Purchase"
+  size="md"
+  (dismiss)="onCancel()"
+  data-testid="purchase-cancel-dialog"
+>
+  @if (purchase(); as item) {
+    <div class="cancel-dialog-body">
+      <!-- Explanatory note -->
+      <div class="cancel-explainer" role="note">
+        <svg
+          class="cancel-explainer__icon"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <p class="cancel-explainer__text">
+          This reverses the posted Purchase through compensating inventory and financial entries. The original Purchase remains in history.
+        </p>
+      </div>
+
+      <!-- Purchase Summary Card -->
+      <section class="purchase-summary-box" aria-label="Purchase Summary">
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="summary-item__label">Reference</span>
+            <strong class="summary-item__value" data-testid="cancel-dialog-ref">{{ purchaseRef() }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-item__label">Supplier</span>
+            <span class="summary-item__value" data-testid="cancel-dialog-supplier">{{ item.supplierNameSnapshot }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-item__label">Date</span>
+            <span class="summary-item__value tabular-num">{{ formatDate(item.purchaseDate) }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-item__label">Status</span>
+            <span class="summary-item__value">
+              <agrivio-ui-status-badge [label]="item.status" tone="success" />
+            </span>
+          </div>
+          <div class="summary-item summary-item--wide">
+            <span class="summary-item__label">Total Amount</span>
+            <strong class="summary-item__value summary-item__value--accent tabular-num" data-testid="cancel-dialog-amount">
+              {{ formatMoney(item.purchaseTotal) }}
+            </strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Compensating Impact Breakdown -->
+      <section class="impact-section" aria-label="Compensating Impact">
+        <h4 class="impact-section__title">Compensating Impact Breakdown</h4>
+        <ul class="impact-list">
+          <li class="impact-list__item" data-testid="cancel-inventory-impact">
+            <div class="impact-icon impact-icon--inventory" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <div class="impact-content">
+              <strong>Inventory reversal</strong>
+              <p>Reverses receipt of {{ item.lines.length }} {{ item.lines.length === 1 ? 'line item' : 'line items' }} from {{ item.warehouseNameSnapshot || 'warehouse' }} stock.</p>
+            </div>
+          </li>
+
+          @if (item.payableTotal?.amount && item.payableTotal!.amount !== '0.00' && item.payableTotal!.amount !== '0') {
+            <li class="impact-list__item" data-testid="cancel-payable-impact">
+              <div class="impact-icon impact-icon--payable" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+              </div>
+              <div class="impact-content">
+                <strong>Payable liability reversed</strong>
+                <p>Reverses accounts payable of {{ formatMoney(item.payableTotal) }} on {{ item.supplierNameSnapshot }}'s ledger.</p>
+              </div>
+            </li>
+          }
+
+          @if (item.payments && item.payments.length > 0) {
+            <li class="impact-list__item" data-testid="cancel-account-impact">
+              <div class="impact-icon impact-icon--account" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <line x1="2" y1="10" x2="22" y2="10"></line>
+                </svg>
+              </div>
+              <div class="impact-content">
+                <strong>Direct payment reversal</strong>
+                <p>
+                  @for (payment of item.payments; track payment.paymentId ?? payment.accountId) {
+                    <span>Refunds {{ formatMoney(payment.amount) }} to {{ payment.accountNameSnapshot }} ({{ payment.accountTypeSnapshot }}). </span>
+                  }
+                </p>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <!-- Cancellation Reason Input -->
+      <div class="form-field">
+        <agrivio-ui-field-label
+          label="Cancellation reason"
+          for="purchase-cancel-reason"
+          [required]="true"
+        />
+        <textarea
+          id="purchase-cancel-reason"
+          class="ag-input cancel-reason-input"
+          rows="3"
+          [ngModel]="reason()"
+          (ngModelChange)="onReasonChange($event)"
+          placeholder="State the reason for cancelling this purchase (e.g. entered in error, duplicate entry)…"
+          aria-required="true"
+          maxlength="1000"
+          data-testid="cancel-reason-textarea"
+          [class.is-invalid]="!!reasonError()"
+        ></textarea>
+        <div class="field-meta">
+          @if (reasonError(); as error) {
+            <p class="field-error" role="alert" data-testid="cancel-reason-error">{{ error }}</p>
+          } @else {
+            <span></span>
+          }
+          <span class="char-count" [class.char-count--warn]="reason().length > 900">
+            {{ reason().length }} / 1000
+          </span>
+        </div>
+      </div>
+
+      <!-- Error message alert -->
+      @if (errorMessage(); as error) {
+        <div class="dialog-alert">
+          <agrivio-ui-alert tone="danger" [message]="error" role="alert" data-testid="cancel-dialog-error" />
+        </div>
+      }
+
+      <!-- Dialog Actions -->
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="ag-btn ag-btn--secondary"
+          (click)="onCancel()"
+          [disabled]="submitting()"
+          data-testid="cancel-dialog-dismiss"
+        >
+          Keep Purchase
+        </button>
+        <button
+          type="button"
+          class="ag-btn ag-btn--danger"
+          (click)="onSubmit()"
+          [disabled]="submitting() || (submitAttempted() && !isReasonValid())"
+          data-testid="cancel-dialog-confirm"
+        >
+          @if (submitting()) {
+            Cancelling…
+          } @else {
+            Cancel Purchase
+          }
+        </button>
+      </div>
+    </div>
+  }
+</agrivio-ui-dialog>

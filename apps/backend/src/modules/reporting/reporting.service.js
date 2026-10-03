@@ -15,6 +15,7 @@ const { REPORT_BY_KEY, REPORT_FAMILIES } = require('./report-catalog');
 const { parseReportFilters, parseReportKey } = require('./report-filters');
 const { renderExport } = require('./report-exports');
 const { createReportQueries } = require('./report-queries');
+const { createFinancialReporting } = require('./financial-reporting');
 const {
   REPORT_CAPABILITY_KEY_BY_REPORT_KEY,
 } = require('../capabilities/capability.registry');
@@ -67,6 +68,20 @@ function createReportingService(deps) {
   const capabilityService = deps.capabilityService ?? null;
   const now = deps.now ?? (() => new Date());
   const queries = createReportQueries(deps);
+  const financial = createFinancialReporting(deps);
+  const financialReportQuery = Object.freeze({
+    'financial-position': financial.financialPosition,
+    'daily-cash-position': financial.dailyCashPosition,
+    'account-statement': financial.accountStatement,
+    'cash-book': financial.cashBook,
+    'bank-book': financial.bankBook,
+    'account-transfers': financial.transfers,
+    'treasury-movements': financial.treasuryMovements,
+    'manual-adjustments': financial.manualAdjustments,
+    'customer-loans': financial.customerLoans,
+    'supplier-refunds': financial.supplierRefunds,
+    'financial-reconciliation': financial.reconciliation,
+  });
 
   async function resolveOrgBusinessDate(organizationId) {
     const timezone = await resolveOrganizationTimezone(organizationId);
@@ -133,7 +148,15 @@ function createReportingService(deps) {
         'netSalesRevenue',
         'netCogs',
         'customerReceivables',
+        'totalReceivable',
+        'totalCustomerAdvance',
+        'netExposure',
+        'totalCustomerLoanReceivable',
+        'totalCustomerExposure',
         'supplierPayables',
+        'totalSupplierPayable',
+        'totalSupplierAdvance',
+        'netSupplierPayable',
         'stockValuation',
       ]);
     }
@@ -143,6 +166,8 @@ function createReportingService(deps) {
         'bankBalances',
         'jazzCashBalance',
         'easypaisaBalance',
+        'otherLiquidBalances',
+        'totalLiquidFunds',
         'accountDistribution',
       ]);
     }
@@ -164,7 +189,9 @@ function createReportingService(deps) {
   async function buildReportDataset(organizationId, key, rawFilters, authContext) {
     const filters = parseReportFilters(key, rawFilters);
     assertOptionalLocationFilters(authContext, filters);
-    const dataset = await queries.queryReport(organizationId, key, filters, authContext);
+    const dataset = financialReportQuery[key]
+      ? await financialReportQuery[key](organizationId, filters, authContext)
+      : await queries.queryReport(organizationId, key, filters, authContext);
     return { ...dataset, filters };
   }
 
@@ -242,25 +269,58 @@ function createReportingService(deps) {
       bankBalances: toMoneyDto(totals.bank),
       jazzCashBalance: toMoneyDto(totals.jazzcash),
       easypaisaBalance: toMoneyDto(totals.easypaisa),
+      otherLiquidBalances: toMoneyDto(totals.jazzcash + totals.easypaisa),
+      totalLiquidFunds: toMoneyDto(
+        totals.cash + totals.bank + totals.jazzcash + totals.easypaisa,
+      ),
     };
   }
 
   async function sumReceivablesPayables(organizationId) {
-    const [customers, suppliers] = await Promise.all([
+    const [customers, loans, advances, suppliers, supplierAdvances] = await Promise.all([
       paymentsService.listCustomerReceivableBalances(organizationId),
+      typeof paymentsService.listCustomerLoanReceivableBalances === 'function'
+        ? paymentsService.listCustomerLoanReceivableBalances(organizationId)
+        : Promise.resolve({ items: [] }),
+      typeof paymentsService.listCustomerAdvanceBalances === 'function'
+        ? paymentsService.listCustomerAdvanceBalances(organizationId)
+        : Promise.resolve({ items: [] }),
       paymentsService.listSupplierPayableBalances(organizationId),
+      typeof paymentsService.listSupplierAdvanceBalances === 'function'
+        ? paymentsService.listSupplierAdvanceBalances(organizationId)
+        : Promise.resolve({ items: [] }),
     ]);
     let receivable = 0n;
     for (const item of customers.items ?? []) {
       receivable += BigInt(String(item.receivableMinorUnits ?? '0'));
     }
+    let advance = 0n;
+    for (const item of advances.items ?? []) {
+      advance += BigInt(String(item.advanceMinorUnits ?? '0'));
+    }
+    let loanReceivable = 0n;
+    for (const item of loans.items ?? []) {
+      loanReceivable += BigInt(String(item.loanReceivableMinorUnits ?? '0'));
+    }
     let payable = 0n;
     for (const item of suppliers.items ?? []) {
       payable += BigInt(String(item.payableMinorUnits ?? '0'));
     }
+    let supplierAdvance = 0n;
+    for (const item of supplierAdvances.items ?? []) {
+      supplierAdvance += BigInt(String(item.advanceMinorUnits ?? '0'));
+    }
     return {
       customerReceivables: toMoneyDto(receivable),
+      totalReceivable: toMoneyDto(receivable),
+      totalCustomerAdvance: toMoneyDto(advance),
+      netExposure: toMoneyDto(receivable - advance),
+      totalCustomerLoanReceivable: toMoneyDto(loanReceivable),
+      totalCustomerExposure: toMoneyDto(receivable + loanReceivable - advance),
       supplierPayables: toMoneyDto(payable),
+      totalSupplierPayable: toMoneyDto(payable),
+      totalSupplierAdvance: toMoneyDto(supplierAdvance),
+      netSupplierPayable: toMoneyDto(payable - supplierAdvance),
     };
   }
 

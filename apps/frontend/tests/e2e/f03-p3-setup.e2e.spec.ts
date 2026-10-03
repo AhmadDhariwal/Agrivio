@@ -35,16 +35,17 @@ test.describe('F03 P3 setup openings and plan limits', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     await expect(activationUrl).toBeVisible();
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -188,11 +189,33 @@ async function seedStarterPlan(
     },
     data: {
       planCode: 'Starter',
+      displayName: 'Starter',
+      shortDescription: 'Essential POS and inventory for a single-location agricultural retailer.',
+      targetCustomer: 'Single-shop agricultural retailer',
+      catalogRevision: 'R1-CATALOG-1',
+      currency: 'PKR',
+      monthlyPriceMinorUnits: 500000,
+      annualPriceMinorUnits: 5000000,
+      annualDiscountPercent: 16.67,
+      trialEligible: true,
       activate: true,
-      monthlyPriceMinorUnits: 1000,
-      limits,
+      limits: {
+        products: limits.products ?? 200,
+        activeUsers: 2,
+        branches: 1,
+        warehouses: 1,
+        customers: limits.customers ?? 100,
+        suppliers: limits.suppliers ?? 50,
+      },
+      entitlements: {
+        imports: false,
+        reportsExports: false,
+        auditHistory: '30d',
+        backupPolicyRef: 'weekly',
+        dedicatedCloudEligible: false,
+        supportLevelRef: 'standard',
+      },
     },
   });
   expect([200, 201]).toContain(planResponse.status());
 }
-

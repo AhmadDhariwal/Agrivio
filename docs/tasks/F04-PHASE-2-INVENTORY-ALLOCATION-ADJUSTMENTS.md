@@ -60,3 +60,8 @@ Gates: `npm run lint`, `typecheck`, `test:unit`, `test:architecture`, `build`, `
 ## Next
 
 * F04 P3 (`R1-F04-009`+) warehouse transfers after P2 acceptance
+
+## Draft discard hardening follow-up (2026-09-28)
+
+* Existing Stock Adjustment create/edit/post/reverse behavior is unchanged. Draft discard is now transactionally audited and version-conditional; concurrent edit/post or a non-draft lifecycle returns `409`.
+* Draft update conditionals include `status=draft`, and warehouse-scope checks cover a changed warehouse as well as the original one. No model or permission change was required.

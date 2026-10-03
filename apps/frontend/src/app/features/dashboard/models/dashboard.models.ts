@@ -21,8 +21,18 @@ export interface DashboardPayload {
   bankBalances?: MoneyDto;
   jazzCashBalance?: MoneyDto;
   easypaisaBalance?: MoneyDto;
+  otherLiquidBalances?: MoneyDto;
+  totalLiquidFunds?: MoneyDto;
   customerReceivables?: MoneyDto;
+  totalReceivable?: MoneyDto;
+  totalCustomerAdvance?: MoneyDto;
+  netExposure?: MoneyDto;
+  totalCustomerLoanReceivable?: MoneyDto;
+  totalCustomerExposure?: MoneyDto;
   supplierPayables?: MoneyDto;
+  totalSupplierPayable?: MoneyDto;
+  totalSupplierAdvance?: MoneyDto;
+  netSupplierPayable?: MoneyDto;
   accountDistribution?: Array<{ key: string; label: string; balance: MoneyDto }>;
   salesVsPurchases?: Array<{ date: string; sales: MoneyDto; purchases: MoneyDto }>;
   grossProfitTrend?: Array<{ date: string; grossProfit: MoneyDto }>;

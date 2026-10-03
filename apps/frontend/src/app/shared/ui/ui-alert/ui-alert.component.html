@@ -1,0 +1,6 @@
+@if (message()) {
+  <div class="ag-alert" [class]="'ag-alert ag-alert--' + tone()" [attr.role]="role()">
+    <ng-content />
+    <span>{{ message() }}</span>
+  </div>
+}

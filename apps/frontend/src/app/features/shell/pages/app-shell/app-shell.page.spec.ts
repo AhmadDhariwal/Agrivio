@@ -136,6 +136,88 @@ describe('R1-F09-003 Angular role UX spot check', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Customize Navigation');
   });
+
+  it('renders tenant banner in organization context and removes it when switching to platform context', async () => {
+    const { signal } = await import('@angular/core');
+    const currentContext = signal<any>({
+      contextType: 'organization',
+      organizationId: 'org-1',
+      role: 'Owner',
+      permissions: OWNER_A,
+    });
+    const currentSession = signal<any>({
+      user: { id: 'u1', email: 'owner@example.com', displayName: 'Owner', status: 'active' },
+      activeContext: currentContext(),
+      availableContexts: [],
+      subscriptionAccessState: null,
+    });
+    const dynamicStore = {
+      session: currentSession,
+      activeContext: currentContext,
+      hasPermission: (permission: string) => OWNER_A.includes(permission),
+      loadSession: () => of({}),
+    };
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [AppShellPage],
+      providers: [
+        provideRouter([]),
+        { provide: AuthSessionStore, useValue: dynamicStore },
+        { provide: AuthApi, useValue: { logout: () => of({}) } },
+        { provide: NavigationApi, useValue: { getPreferences: () => of({ hiddenItemIds: [] }), updatePreferences: () => of({ hiddenItemIds: [], groupOrder: [], itemOrderByGroup: {} }) } },
+        { provide: CatalogApi, useValue: { listProducts: () => of({ items: [], meta: { page: 1, pageSize: 25, total: 0 } }), searchProductOptions: () => of([]) } },
+        NavigationService,
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(AppShellPage);
+    fixture.detectChanges();
+
+    // In organization context: tenant recovery banner is rendered
+    expect(fixture.nativeElement.querySelector('agrivio-subscription-status-banner')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Subscription unavailable');
+    expect(fixture.nativeElement.textContent).toContain('Manage billing →');
+
+    // Switch to platform context
+    const platformCtx = {
+      contextType: 'platform',
+      permissions: ['platform.organizations.view', 'platform.billing.verify'],
+    };
+    currentContext.set(platformCtx);
+    currentSession.set({
+      user: { id: 'u1', email: 'admin@platform.gov', displayName: 'Super Admin', status: 'active' },
+      activeContext: platformCtx,
+      availableContexts: [],
+      subscriptionAccessState: null,
+    });
+    fixture.detectChanges();
+
+    // In platform context: tenant banner is immediately removed
+    expect(fixture.nativeElement.querySelector('agrivio-subscription-status-banner')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Subscription unavailable');
+    expect(fixture.nativeElement.textContent).not.toContain('Manage billing →');
+
+    // Switch back to organization context
+    currentContext.set({
+      contextType: 'organization',
+      organizationId: 'org-1',
+      role: 'Owner',
+      permissions: OWNER_A,
+    });
+    currentSession.set({
+      user: { id: 'u1', email: 'owner@example.com', displayName: 'Owner', status: 'active' },
+      activeContext: currentContext(),
+      availableContexts: [],
+      subscriptionAccessState: null,
+    });
+    fixture.detectChanges();
+
+    // Restored without stale state
+    expect(fixture.nativeElement.querySelector('agrivio-subscription-status-banner')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Subscription unavailable');
+    expect(fixture.nativeElement.textContent).toContain('Manage billing →');
+  });
 });
 
 async function createShell(

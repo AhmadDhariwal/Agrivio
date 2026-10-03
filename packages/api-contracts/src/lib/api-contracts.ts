@@ -100,6 +100,10 @@ export const API_ACCOUNT_TRANSACTIONS_PATH = `${API_V1_PREFIX}/account-transacti
 /** Account-to-account transfers (R1-F07-006/007). */
 export const API_ACCOUNT_TRANSFERS_PATH = `${API_V1_PREFIX}/account-transfers` as const;
 
+/** Set-balance treasury adjustment command. */
+export const API_ACCOUNT_BALANCE_ADJUSTMENTS_PATH =
+  `${API_V1_PREFIX}/account-balance-adjustments` as const;
+
 /** Expense categories (R1-F07-008). */
 export const API_EXPENSE_CATEGORIES_PATH = `${API_V1_PREFIX}/expense-categories` as const;
 
@@ -108,6 +112,9 @@ export const API_EXPENSES_PATH = `${API_V1_PREFIX}/expenses` as const;
 
 /** Supplier payments (R1-F05-001). */
 export const API_SUPPLIER_PAYMENTS_PATH = `${API_V1_PREFIX}/supplier-payments` as const;
+export const API_SUPPLIER_REFUNDS_PATH = `${API_V1_PREFIX}/supplier-refunds` as const;
+export const API_SUPPLIER_BALANCE_ADJUSTMENTS_PATH =
+  `${API_V1_PREFIX}/supplier-balance-adjustments` as const;
 
 /** Purchase drafts and posted purchases (R1-F05-003+). */
 export const API_PURCHASES_PATH = `${API_V1_PREFIX}/purchases` as const;
@@ -117,6 +124,11 @@ export const API_SALES_PATH = `${API_V1_PREFIX}/sales` as const;
 
 /** Customer payments (R1-F06-001). */
 export const API_CUSTOMER_PAYMENTS_PATH = `${API_V1_PREFIX}/customer-payments` as const;
+export const API_CUSTOMER_LOANS_PATH = `${API_V1_PREFIX}/customer-loans` as const;
+export const API_CUSTOMER_LOAN_REPAYMENTS_PATH =
+  `${API_V1_PREFIX}/customer-loan-repayments` as const;
+export const API_CUSTOMER_BALANCE_ADJUSTMENTS_PATH =
+  `${API_V1_PREFIX}/customer-balance-adjustments` as const;
 
 /** Payment correction base path (R1-F09-003 gap close). */
 export const API_PAYMENTS_PATH = `${API_V1_PREFIX}/payments` as const;

@@ -69,6 +69,25 @@
 * Date selections remain staged until Apply is clicked; applying or clearing a filter bypasses the short-lived list cache and reloads authoritative results.
 * Shared backend validation rejects invalid, reversed, and ambiguous date filters before querying.
 
+### Post-audit supplier accounting correction (2026-09-22)
+
+* General supplier payments now use the customer receivable-target pattern: a synthetic dated opening target is combined with posted transaction targets and passed through the existing FIFO allocator. Supplier opening payable is therefore settled before later purchases, and only the true excess becomes supplier advance.
+* Purchase posting consumes available supplier advance after direct purchase payments through paired immutable `payable` and `supplier_advance` effects. Purchase cancellation appends linked compensating effects that reverse the payable application and restore the consumed advance exactly once.
+* Supplier DTOs and reconciliation derive gross payable, gross advance, and net payable (`payable - advance`) from posted ledger effects. Reconciliation reports legacy payable/advance coexistence without mutating history.
+* Dashboard financial summary retains gross Supplier Payables and adds Total Supplier Advance plus Net Supplier Payable from the same ledger source. Supplier ledger/detail views expose net payable and human-readable advance application/restoration entries.
+* Inventory receipt values, landed-cost allocation, stock movements, WAC, batches, and expiry behavior are unchanged.
+
+### Posted Purchase cancellation/correction hardening (2026-09-27)
+
+* `POST /api/v1/purchases/:id/correct` atomically composes the existing Purchase cancellation and normal Purchase posting engines. The original remains immutable, its owned stock/payable/Advance/direct-payment effects are compensated, and a normally validated replacement is posted in the same Mongo transaction.
+* Purchase list/detail DTOs expose durable original/replacement lineage and correction status. The existing `purchases.cancel` and `purchases.post` permissions plus the existing cancel/post capability controls remain authoritative; no new permission was introduced.
+* Cancellation now blocks external Supplier Payment allocations and posted Purchase Returns with actionable conflicts. Purchase target reads used by Supplier Payments and Purchase Returns acquire a transaction-scoped dependency revision so cancel/correct races serialize safely.
+* Inventory balance, batch, and cost-state reads now honor the active session, allowing a cancellation reversal and replacement receipt to observe each other while retaining the existing WAC and negative-stock engines.
+
+Model review: the tenant-owned Purchase model remains canonically owned by Purchases. `originalPurchaseId`, `replacementPurchaseId`, correction reason/actor/time, and internal `dependencyRevision` are current-scope A/B fields used by read DTOs, audit, lineage, and concurrency control. References are organization-scoped in services; org-leading lineage indexes support list/detail derivation. The change is backward-compatible (legacy rows read with null lineage and revision defaulting to zero), introduces no destructive migration or mutable accounting balance, and is covered by isolated real-Mongo transaction, idempotency, dependency, tenancy, inventory/WAC, payable, Advance, batch, and lineage tests.
+
+Model review: existing tenant-owned `ledger_effects` and `payment_allocations` remain Payments/Ledgers-owned, organization-scoped, append-only, and transactionally written. The changes are backward-compatible enum extensions for supplier advance consumption/restoration sources and the `supplier_opening_payable` allocation target; no new mutable balance field, collection, backfill, or destructive migration is introduced. Existing org-leading lookup indexes remain appropriate, operational source uniqueness provides idempotency for each purchase/source pair, and focused HTTP plus reconciliation tests cover allocation persistence and reversal behavior. Real-Mongo transaction/index verification remains part of the focused Mongo suite.
+
 ## Next
 
 * F06 Sales/POS may begin after F04 exit acceptance (does not require F05)

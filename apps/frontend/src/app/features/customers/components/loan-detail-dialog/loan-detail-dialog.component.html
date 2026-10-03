@@ -1,0 +1,129 @@
+<agrivio-ui-dialog
+  [open]="open()"
+  title="Customer Loan Details"
+  description="Inquire loan details, repayment schedule, and settlement history."
+  size="lg"
+  (dismiss)="onDismiss()"
+>
+  @if (loading()) {
+    <agrivio-ui-loading-state label="Loading loan details…" />
+  } @else if (errorMessage()) {
+    <agrivio-ui-alert tone="danger" [message]="errorMessage()!" role="alert" />
+  } @else if (loan(); as item) {
+    <div class="loan-detail-shell">
+      <div class="kpi-strip">
+        <div class="kpi-item">
+          <span class="kpi-label">Principal</span>
+          <strong class="kpi-value">PKR {{ item.principal.amount }}</strong>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">Repaid</span>
+          <strong class="kpi-value text-success">PKR {{ item.repaid.amount }}</strong>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">Outstanding</span>
+          <strong class="kpi-value text-outstanding" data-testid="loan-detail-outstanding">PKR {{ item.outstanding.amount }}</strong>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">Status</span>
+          <agrivio-ui-status-badge [label]="humanStatus(item.status)" [tone]="statusTone(item.status)" />
+        </div>
+      </div>
+
+      <div class="facts-grid">
+        <div class="fact">
+          <span class="fact-label">Reference</span>
+          <span class="fact-value">{{ item.reference || '—' }}</span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">Disbursement Date</span>
+          <span class="fact-value">{{ item.businessDate }}</span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">Due Date</span>
+          <span class="fact-value">{{ item.dueDate || '—' }}</span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">Notes</span>
+          <span class="fact-value">{{ item.notes || '—' }}</span>
+        </div>
+      </div>
+
+      <!-- Repayment History Section -->
+      <div class="repayments-section">
+        <h3 class="section-title">Repayment History</h3>
+        @if (item.repayments && item.repayments.length > 0) {
+          <div class="table-wrap">
+            <table class="ag-table" data-testid="loan-repayments-table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Reference</th>
+                  <th scope="col">Notes</th>
+                  @if (canReverseRepayments()) {
+                    <th scope="col" class="ag-table__col--actions">Actions</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (rep of item.repayments; track rep.id) {
+                  <tr>
+                    <td>{{ rep.businessDate }}</td>
+                    <td class="tabular-num font-semibold">PKR {{ rep.amount.amount }}</td>
+                    <td>
+                      <agrivio-ui-status-badge
+                        [label]="rep.status === 'posted' ? 'Posted' : 'Reversed'"
+                        [tone]="rep.status === 'posted' ? 'success' : 'danger'"
+                      />
+                    </td>
+                    <td>{{ rep.reference || '—' }}</td>
+                    <td>{{ rep.notes || '—' }}</td>
+                    @if (canReverseRepayments()) {
+                      <td class="ag-table__col--actions">
+                        @if (rep.status === 'posted') {
+                          <button
+                            type="button"
+                            class="ag-btn ag-btn--ghost ag-btn--sm text-danger"
+                            (click)="openReverseRepayment(rep)"
+                            data-testid="reverse-repayment-btn"
+                          >
+                            Reverse
+                          </button>
+                        } @else {
+                          <span class="ag-muted">—</span>
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="ag-muted" data-testid="no-repayments-msg">No repayments recorded yet.</p>
+        }
+      </div>
+    </div>
+  }
+
+  <div dialog-actions class="dialog-actions">
+    <button
+      type="button"
+      class="ag-btn ag-btn--secondary"
+      (click)="onDismiss()"
+      data-testid="loan-detail-close-btn"
+    >
+      Close
+    </button>
+  </div>
+</agrivio-ui-dialog>
+
+<!-- Reverse Repayment Dialog -->
+<agrivio-reverse-repayment-dialog
+  [open]="reverseRepaymentDialogOpen()"
+  [repayment]="selectedRepayment()"
+  (dismiss)="closeReverseRepayment()"
+  (repaymentReversed)="onRepaymentReversed()"
+/>

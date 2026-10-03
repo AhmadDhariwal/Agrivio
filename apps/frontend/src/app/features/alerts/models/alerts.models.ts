@@ -26,6 +26,40 @@ export interface NotificationItem {
   createdAt: string | null;
 }
 
+export interface EnrichedNotificationItem extends NotificationItem {
+  targetPath: string;
+  targetQueryParams: Record<string, string>;
+}
+
+export function parseTargetRoute(targetRoute?: string | null): {
+  path: string;
+  queryParams: Record<string, string>;
+} {
+  if (!targetRoute) {
+    return { path: '/app/alerts', queryParams: {} };
+  }
+  const [pathPart, queryPart] = targetRoute.split('?');
+  const path = pathPart || '/app/alerts';
+  if (!queryPart) {
+    return { path, queryParams: {} };
+  }
+  const queryParams: Record<string, string> = {};
+  const searchParams = new URLSearchParams(queryPart);
+  searchParams.forEach((val, key) => {
+    queryParams[key] = val;
+  });
+  return { path, queryParams };
+}
+
+export function enrichNotificationItem(item: NotificationItem): EnrichedNotificationItem {
+  const { path, queryParams } = parseTargetRoute(item.targetRoute);
+  return {
+    ...item,
+    targetPath: path,
+    targetQueryParams: queryParams,
+  };
+}
+
 export interface NotificationFeedPayload {
   items: NotificationItem[];
   unreadCount: number;

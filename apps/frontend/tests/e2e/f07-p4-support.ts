@@ -14,6 +14,7 @@ export async function seedStarterPlan(
   const csrf = await request.post(`${API}/api/v1/auth/csrf`);
   const csrfBody = await csrf.json();
   const token = csrfBody.data.csrfToken as string;
+  const limitsInput = extras?.limits ?? {};
   const plan = await request.post(`${API}/api/v1/platform/subscription-plans`, {
     headers: {
       'X-CSRF-Token': token,
@@ -21,10 +22,33 @@ export async function seedStarterPlan(
     },
     data: {
       planCode: 'Starter',
+      displayName: 'Starter',
+      shortDescription: 'Essential POS and inventory for a single-location agricultural retailer.',
+      targetCustomer: 'Single-shop agricultural retailer',
+      catalogRevision: 'R1-CATALOG-1',
+      currency: 'PKR',
+      monthlyPriceMinorUnits: 500000,
+      annualPriceMinorUnits: 5000000,
+      annualDiscountPercent: 16.67,
+      trialEligible: true,
       activate: true,
-      monthlyPriceMinorUnits: 1000,
-      limits: extras?.limits ?? { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
-      ...(extras?.entitlements ? { entitlements: extras.entitlements } : {}),
+      limits: {
+        products: limitsInput['products'] ?? 200,
+        activeUsers: limitsInput['activeUsers'] ?? limitsInput['users'] ?? 20,
+        branches: limitsInput['branches'] ?? 10,
+        warehouses: limitsInput['warehouses'] ?? 20,
+        customers: limitsInput['customers'] ?? 100,
+        suppliers: limitsInput['suppliers'] ?? 50,
+      },
+      entitlements: {
+        imports: false,
+        reportsExports: false,
+        auditHistory: '30d',
+        backupPolicyRef: 'weekly',
+        dedicatedCloudEligible: false,
+        supportLevelRef: 'standard',
+        ...(extras?.entitlements ?? {}),
+      },
     },
   });
   expect([200, 201]).toContain(plan.status());
@@ -190,5 +214,6 @@ export async function createSellableProductWithOpening(
   await page.getByTestId('opening-quantity').fill(input.quantity);
   await page.getByTestId('opening-inventory-value').fill(input.inventoryValue);
   await page.getByTestId('opening-stock-save').click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Post Opening Stock' }).click();
   await expect(page.getByTestId('opening-stock-success')).toBeVisible();
 }

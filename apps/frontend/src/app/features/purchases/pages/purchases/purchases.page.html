@@ -128,7 +128,7 @@
           data-testid="purchases-status-filter"
         >
           <option value="">All statuses</option>
-          <option value="draft">Draft (unposted)</option>
+          <option value="draft">Draft</option>
           <option value="posted">Posted</option>
           <option value="cancelled">Cancelled</option>
         </select>
@@ -214,7 +214,8 @@
               <div
                 class="purchase-cell__glyph"
                 [class.purchase-cell__glyph--draft]="item.status === 'draft'"
-                [class.purchase-cell__glyph--posted]="item.status === 'posted'"
+                [class.purchase-cell__glyph--posted]="item.status === 'posted' && !item.replacementPurchaseId && item.correctionStatus !== 'corrected'"
+                [class.purchase-cell__glyph--corrected]="item.status === 'posted' && (!!item.replacementPurchaseId || item.correctionStatus === 'corrected')"
                 [class.purchase-cell__glyph--cancelled]="item.status === 'cancelled'"
                 aria-hidden="true"
               >
@@ -234,12 +235,23 @@
                 </svg>
               </div>
               <div class="purchase-cell__meta">
+                @if (canInspect()) {
+                <a
+                  class="purchase-cell__name"
+                  [routerLink]="['/app/purchases', item.id]"
+                  [title]="'View ' + (item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()))"
+                  data-testid="purchase-reference-link"
+                >
+                  {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
+                </a>
+                } @else {
                 <span
                   class="purchase-cell__name"
                   [title]="item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase())"
                 >
                   {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
                 </span>
+                }
                 <span class="purchase-cell__sub">{{ item.id.slice(-8) }}</span>
               </div>
             </div>
@@ -261,7 +273,7 @@
 
           <!-- Date -->
           <td class="data-table__td col-date">
-            <span class="date-text">{{ item.purchaseDate }}</span>
+            <span class="date-text">{{ item.purchaseDate | agDate }}</span>
           </td>
 
           <!-- Total -->
@@ -292,12 +304,12 @@
           <td class="data-table__td col-status">
             <span
               class="status-indicator"
-              [class.status-indicator--active]="item.status === 'posted'"
-              [class.status-indicator--amber]="item.status === 'draft'"
+              [class.status-indicator--active]="item.status === 'posted' && !item.replacementPurchaseId && item.correctionStatus !== 'corrected'"
+              [class.status-indicator--amber]="item.status === 'draft' || !!item.replacementPurchaseId || item.correctionStatus === 'corrected'"
               [class.status-indicator--inactive]="item.status === 'cancelled'"
             >
               <span class="status-indicator__dot"></span>
-              {{ statusLabel(item.status) }}
+              {{ statusLabel(item) }}
             </span>
           </td>
 
@@ -359,19 +371,29 @@
     <div class="mobile-purchase-card" data-testid="purchase-mobile-card">
       <div class="mobile-purchase-card__header">
         <div class="mobile-purchase-card__ref-wrap">
+          @if (canInspect()) {
+          <a
+            class="mobile-purchase-card__ref"
+            [routerLink]="['/app/purchases', item.id]"
+            data-testid="purchase-reference-link"
+          >
+            {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
+          </a>
+          } @else {
           <span class="mobile-purchase-card__ref">
             {{ item.supplierInvoiceReference || ('Purchase #' + item.id.slice(-6).toUpperCase()) }}
           </span>
-          <span class="mobile-purchase-card__date">{{ item.purchaseDate }}</span>
+          }
+          <span class="mobile-purchase-card__date">{{ item.purchaseDate | agDate }}</span>
         </div>
         <span
           class="status-indicator"
-          [class.status-indicator--active]="item.status === 'posted'"
-          [class.status-indicator--amber]="item.status === 'draft'"
+          [class.status-indicator--active]="item.status === 'posted' && !item.replacementPurchaseId && item.correctionStatus !== 'corrected'"
+          [class.status-indicator--amber]="item.status === 'draft' || !!item.replacementPurchaseId || item.correctionStatus === 'corrected'"
           [class.status-indicator--inactive]="item.status === 'cancelled'"
         >
           <span class="status-indicator__dot"></span>
-          {{ statusLabel(item.status) }}
+          {{ statusLabel(item) }}
         </span>
       </div>
 

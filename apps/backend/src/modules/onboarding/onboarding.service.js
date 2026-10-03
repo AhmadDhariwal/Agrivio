@@ -367,14 +367,23 @@ function createOnboardingService(deps) {
 
     async listOrganizations(filter = {}) {
       const normalizedFilter = parsePlatformOrganizationQuery(filter);
-      const result = await (typeof store.listPlatformOrganizations === 'function'
-        ? store.listPlatformOrganizations(normalizedFilter)
-        : store.listOrganizations(normalizedFilter));
+      const [result, summary] = await Promise.all([
+        typeof store.listPlatformOrganizations === 'function'
+          ? store.listPlatformOrganizations(normalizedFilter)
+          : store.listOrganizations(normalizedFilter),
+        typeof store.getPlatformOrganizationSummary === 'function'
+          ? store.getPlatformOrganizationSummary()
+          : Promise.resolve(null),
+      ]);
       const organizations = Array.isArray(result) ? result : result.items;
       const summaries = await Promise.all(
         organizations.map((organization) => toOrganizationListItem(store, organization)),
       );
-      return { items: summaries, total: Array.isArray(result) ? summaries.length : result.total };
+      return {
+        items: summaries,
+        total: Array.isArray(result) ? summaries.length : result.total,
+        ...(summary === null ? {} : { summary }),
+      };
     },
 
     async getOrganization(organizationId) {
@@ -388,11 +397,17 @@ function createOnboardingService(deps) {
         typeof subscriptionBridge?.getOrganizationSubscription === 'function'
           ? await subscriptionBridge.getOrganizationSubscription(organizationId)
           : await subscriptionStore.findSubscriptionByOrganizationId(organizationId);
+      const subscriptionUnavailable = subscription === null || subscription['id'] === null;
+      const subscriptionWarnings =
+        subscription?.['accessState']?.['warnings'] ??
+        (subscriptionUnavailable
+          ? [{ code: 'subscription_missing', message: 'No subscription record found.' }]
+          : []);
       const base = {
         ...(await toOrganizationListItem(store, organization, owner)),
         owner: owner === null ? null : toUserSummary(owner),
         subscription:
-          subscription === null
+          subscriptionUnavailable
             ? null
             : {
                 id: String(subscription['id'] ?? subscription['_id']),
@@ -437,7 +452,7 @@ function createOnboardingService(deps) {
         setup,
         audit,
         billing,
-        operationalWarnings: base.subscription?.accessState?.warnings ?? [],
+        operationalWarnings: subscriptionWarnings,
       };
     },
 
@@ -606,10 +621,13 @@ function createOnboardingService(deps) {
 
         const issuedAt = now();
         const expiresAt = new Date(issuedAt.getTime() + activationTtlMs);
-        const openTokens = await store.listOpenActivationTokens({
-          userId: ownerUserId,
-          organizationId,
-        });
+        const openTokens = await store.listOpenActivationTokens(
+          {
+            userId: ownerUserId,
+            organizationId,
+          },
+          session,
+        );
         for (const openToken of openTokens) {
           await store.updateActivationToken(session, String(openToken['_id']), {
             consumedAt: issuedAt,
@@ -706,7 +724,7 @@ function createOnboardingService(deps) {
       const passwordHash = await hashPassword(password);
 
       return deps.transactionRunner.run(async (session) => {
-        const activation = await store.findActivationTokenByHash(tokenHash);
+        const activation = await store.findActivationTokenByHash(tokenHash, session);
         if (activation === null) {
           throw forbidden('Activation token is invalid');
         }

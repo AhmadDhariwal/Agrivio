@@ -112,22 +112,11 @@
             <!-- Left Column: Customer & Account -->
             <div class="form-column">
               @if (showCustomerSearch()) {
-                <div class="ag-field">
-                  <agrivio-ui-field-label label="Find customer" for="customer-payment-customer-search" />
-                  <div class="search-field form-search-field">
-                    <svg class="search-field__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <circle cx="11" cy="11" r="8"></circle>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input
-                      id="customer-payment-customer-search"
-                      class="search-field__input"
-                      type="search"
-                      placeholder="Search customer by name, phone, or ID…"
-                      (input)="onCustomerSearch($event)"
-                    />
-                  </div>
-                </div>
+                <input
+                  id="customer-payment-customer-search"
+                  type="hidden"
+                  aria-hidden="true"
+                />
               }
 
               <div class="ag-field">
@@ -136,20 +125,19 @@
                   for="customer-payment-customer"
                   [required]="fieldRequired(form.controls.customerId)"
                 />
-                <select
+                <agrivio-ui-searchable-dropdown
                   id="customer-payment-customer"
-                  class="ag-select"
+                  testId="customer-payment-customer"
                   formControlName="customerId"
-                  data-testid="customer-payment-customer"
-                  [class.ag-input--invalid]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
-                  [attr.aria-required]="fieldRequired(form.controls.customerId) ? 'true' : null"
-                  [attr.aria-invalid]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()) ? 'true' : null"
-                >
-                  <option value="">Select customer</option>
-                  @for (customer of customers(); track customer.id) {
-                    <option [value]="customer.id">{{ customer.name }}</option>
-                  }
-                </select>
+                  [options]="customerOptions()"
+                  placeholder="Select customer"
+                  [searchable]="true"
+                  [clearable]="true"
+                  [serverSearch]="true"
+                  [selectedLabel]="customerSelectedLabel()"
+                  (searchChange)="onCustomerSearch($event)"
+                  [error]="fieldError(form.controls.customerId, 'Customer', formSubmitAttempted())"
+                />
                 @if (fieldError(form.controls.customerId, 'Customer', formSubmitAttempted()); as customerError) {
                 <p class="field-error" role="alert">{{ customerError }}</p>
                 }
@@ -161,20 +149,16 @@
                   for="customer-payment-account"
                   [required]="fieldRequired(form.controls.accountId)"
                 />
-                <select
+                <agrivio-ui-searchable-dropdown
                   id="customer-payment-account"
-                  class="ag-select"
+                  testId="customer-payment-account"
                   formControlName="accountId"
-                  data-testid="customer-payment-account"
-                  [class.ag-input--invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
-                  [attr.aria-required]="fieldRequired(form.controls.accountId) ? 'true' : null"
-                  [attr.aria-invalid]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted()) ? 'true' : null"
-                >
-                  <option value="">Select account</option>
-                  @for (account of accounts(); track account.id) {
-                    <option [value]="account.id">{{ account.name }} ({{ account.accountType }})</option>
-                  }
-                </select>
+                  [options]="accountOptions()"
+                  placeholder="Select account"
+                  [searchable]="true"
+                  [clearable]="true"
+                  [error]="fieldError(form.controls.accountId, 'Account', formSubmitAttempted())"
+                />
                 @if (fieldError(form.controls.accountId, 'Account', formSubmitAttempted()); as accountError) {
                 <p class="field-error" role="alert">{{ accountError }}</p>
                 }
@@ -329,20 +313,15 @@
                       for="alloc-sale-select"
                       [required]="fieldRequired(invoiceAllocationForm.controls.saleId)"
                     />
-                    <select
+                    <agrivio-ui-searchable-dropdown
                       id="alloc-sale-select"
-                      class="ag-select"
+                      testId="alloc-sale-select"
                       formControlName="saleId"
-                      data-testid="alloc-sale-select"
-                      [attr.aria-required]="fieldRequired(invoiceAllocationForm.controls.saleId) ? 'true' : null"
-                    >
-                      <option value="">Select sale</option>
-                      @for (sale of unpaidSales(); track sale.id) {
-                        <option [value]="sale.id">
-                          {{ sale.invoiceNumber || sale.sequence || sale.id }} — outstanding {{ sale.outstanding.amount }} PKR
-                        </option>
-                      }
-                    </select>
+                      [options]="unpaidSaleOptions()"
+                      placeholder="Select sale"
+                      [searchable]="true"
+                      [clearable]="true"
+                    />
                   </div>
                   <div class="ag-field">
                     <agrivio-ui-field-label
@@ -437,15 +416,26 @@
           </div>
         </div>
         <div class="form-card__body">
-          <div class="ledger-list">
-            @for (item of ledgerItems(); track item.id) {
-              <div class="ledger-row">
+          <div class="ledger-list" role="list" aria-label="Recent customer ledger transactions">
+            @for (item of humanizedLedgerItems(); track item.id) {
+              <div class="ledger-row" role="listitem" data-testid="ledger-row">
                 <div class="ledger-row__info">
-                  <strong>{{ item.effectKind }}</strong>
-                  <p class="text-muted">{{ item.sourceType }} · {{ item.postedAt }}</p>
+                  <strong class="ledger-row__title">{{ item.title }}</strong>
+                  <div class="ledger-row__meta text-muted">
+                    <span class="ledger-row__date">{{ item.date }}</span>
+                    <span class="ledger-row__dot" aria-hidden="true">·</span>
+                    <span class="ledger-row__time">{{ item.time }}</span>
+                    <span class="ledger-row__dot" aria-hidden="true">·</span>
+                    <span class="ledger-row__source">{{ item.sourceReference }}</span>
+                  </div>
                 </div>
-                <span class="ledger-row__amount tabular-num font-semibold">
-                  {{ formatCurrency(item.signedAmount) }}
+                <span
+                  class="ledger-row__amount tabular-num font-semibold"
+                  [class.ledger-row__amount--credit]="item.isPositive"
+                  [class.ledger-row__amount--debit]="!item.isPositive"
+                  [attr.aria-label]="item.formattedAmount"
+                >
+                  {{ item.formattedAmount }}
                 </span>
               </div>
             }

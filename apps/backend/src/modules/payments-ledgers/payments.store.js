@@ -37,11 +37,13 @@ function createMongoosePaymentsStore() {
       }
     },
 
-    async findPaymentById(organizationId, id) {
+    async findPaymentById(organizationId, id, session) {
       if (!mongoose.isValidObjectId(id)) {
         return null;
       }
-      return PaymentModel.findOne({ _id: id, organizationId }).lean().exec();
+      const query = PaymentModel.findOne({ _id: id, organizationId });
+      if (session) query.session(session);
+      return query.lean().exec();
     },
 
     async findPaymentByCorrectionOfId(organizationId, correctionOfId, session) {
@@ -116,27 +118,53 @@ function createMongoosePaymentsStore() {
       return { items, total };
     },
 
-    async listAllocationsByPayment(organizationId, paymentId) {
-      return PaymentAllocationModel.find({
+    async listAllocationsByPayment(organizationId, paymentId, session) {
+      const query = PaymentAllocationModel.find({
         organizationId,
         paymentId,
         status: 'posted',
       })
-        .sort({ createdAt: 1 })
+        .sort({ createdAt: 1 });
+      if (session) query.session(session);
+      return query.lean().exec();
+    },
+
+    async listCorrectionsByOriginalIds(organizationId, originalIds) {
+      if (!Array.isArray(originalIds) || originalIds.length === 0) return [];
+      return PaymentModel.find({
+        organizationId,
+        correctionOfId: { $in: originalIds },
+      })
+        .select('_id correctionOfId replacementPaymentId')
         .lean()
         .exec();
     },
 
-    async listAllocationsByTarget(organizationId, targetType, targetId) {
-      return PaymentAllocationModel.find({
+    async listAllocationsByTarget(organizationId, targetType, targetId, session) {
+      const query = PaymentAllocationModel.find({
         organizationId,
         targetType,
         targetId,
         status: 'posted',
       })
-        .sort({ createdAt: 1 })
-        .lean()
-        .exec();
+        .sort({ createdAt: 1 });
+      if (session) query.session(session);
+      const rows = await query.lean().exec();
+      if (rows.length === 0) return rows;
+      const paymentQuery = PaymentModel.find({
+        organizationId,
+        _id: { $in: rows.map((row) => row.paymentId) },
+        correctionOfId: { $ne: null },
+      }).select('_id');
+      if (session) paymentQuery.session(session);
+      const correctionPayments = new Set(
+        (await paymentQuery.lean().exec()).map((row) => String(row._id)),
+      );
+      return rows.map((row) =>
+        correctionPayments.has(String(row.paymentId))
+          ? { ...row, allocatedAmountMinorUnits: `-${row.allocatedAmountMinorUnits}` }
+          : row,
+      );
     },
 
     async appendAuditEvent(session, event) {
@@ -268,6 +296,18 @@ function createInMemoryPaymentsStore() {
         .map((item) => ({ ...item }));
     },
 
+    async listCorrectionsByOriginalIds(organizationId, originalIds) {
+      const wanted = new Set((originalIds ?? []).map(String));
+      return [...payments.values()]
+        .filter(
+          (item) =>
+            String(item.organizationId) === String(organizationId) &&
+            item.correctionOfId &&
+            wanted.has(String(item.correctionOfId)),
+        )
+        .map((item) => ({ ...item }));
+    },
+
     async listAllocationsByTarget(organizationId, targetType, targetId) {
       return [...allocations.values()]
         .filter(
@@ -277,7 +317,12 @@ function createInMemoryPaymentsStore() {
             String(item.targetId) === String(targetId) &&
             item.status === 'posted',
         )
-        .map((item) => ({ ...item }));
+        .map((item) => ({
+          ...item,
+          allocatedAmountMinorUnits: payments.get(String(item.paymentId))?.correctionOfId
+            ? `-${item.allocatedAmountMinorUnits}`
+            : item.allocatedAmountMinorUnits,
+        }));
     },
 
     async appendAuditEvent(_session, event) {

@@ -15,6 +15,10 @@ const MOVEMENT_SOURCE_TYPES = [
   'manual_outflow',
   'manual_inflow_reversal',
   'manual_outflow_reversal',
+  'balance_adjustment_increase',
+  'balance_adjustment_decrease',
+  'balance_adjustment_increase_reversal',
+  'balance_adjustment_decrease_reversal',
   'account_transfer_out',
   'account_transfer_in',
   'account_transfer_out_reversal',
@@ -23,6 +27,12 @@ const MOVEMENT_SOURCE_TYPES = [
   'expense_correction',
   'customer_payment_correction',
   'supplier_payment_correction',
+  'customer_loan_disbursement',
+  'customer_loan_repayment',
+  'customer_loan_repayment_reversal',
+  'customer_loan_reversal',
+  'supplier_advance_refund',
+  'supplier_advance_refund_reversal',
 ];
 const MOVEMENT_STATUSES = ['posted'];
 const ACCOUNT_OWNED_SOURCE_TYPES = [
@@ -30,6 +40,10 @@ const ACCOUNT_OWNED_SOURCE_TYPES = [
   'manual_outflow',
   'manual_inflow_reversal',
   'manual_outflow_reversal',
+  'balance_adjustment_increase',
+  'balance_adjustment_decrease',
+  'balance_adjustment_increase_reversal',
+  'balance_adjustment_decrease_reversal',
   'account_transfer_out',
   'account_transfer_in',
   'account_transfer_out_reversal',
@@ -63,7 +77,12 @@ const accountMovementSchema = new mongoose.Schema(
       required: true,
     },
     purpose: { type: String, default: null },
+    category: { type: String, default: null },
     reference: { type: String, default: null },
+    notes: { type: String, default: null },
+    businessDate: { type: String, default: null },
+    balanceBeforeMinorUnits: { type: String, default: null },
+    desiredBalanceMinorUnits: { type: String, default: null },
     status: {
       type: String,
       required: true,
@@ -85,6 +104,8 @@ const accountMovementSchema = new mongoose.Schema(
 );
 
 accountMovementSchema.index({ organizationId: 1, accountId: 1, postedAt: -1 });
+accountMovementSchema.index({ organizationId: 1, accountId: 1, businessDate: -1, _id: -1 });
+accountMovementSchema.index({ organizationId: 1, status: 1, businessDate: -1, postedAt: -1, _id: -1 });
 accountMovementSchema.index({ organizationId: 1, sourceType: 1, sourceId: 1 });
 accountMovementSchema.index({ organizationId: 1, reversalOfId: 1 });
 accountMovementSchema.index(
@@ -115,6 +136,12 @@ accountMovementSchema.index(
           'customer_payment',
           'customer_payment_correction',
           'supplier_payment_correction',
+          'customer_loan_disbursement',
+          'customer_loan_repayment',
+          'customer_loan_repayment_reversal',
+          'customer_loan_reversal',
+          'supplier_advance_refund',
+          'supplier_advance_refund_reversal',
         ],
       },
       status: 'posted',

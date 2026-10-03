@@ -134,6 +134,20 @@ function parseOpeningStock(body) {
   };
 }
 
+function parseExpectedVersion(body) {
+  const expectedVersion = body?.expectedVersion;
+  if (
+    typeof expectedVersion !== 'number' ||
+    !Number.isInteger(expectedVersion) ||
+    expectedVersion < 1
+  ) {
+    throw validationFailed('expectedVersion must be a positive integer', [
+      { field: 'expectedVersion', message: 'expectedVersion must be a positive integer' },
+    ]);
+  }
+  return expectedVersion;
+}
+
 function moneyDto(minorUnits) {
   return {
     amount: formatMoneyMinorUnits(BigInt(String(minorUnits ?? '0'))),
@@ -231,6 +245,35 @@ function toOpeningStockResultDto({ movement, batch, balance, costState }) {
     batch: batch ? toBatchDto(batch) : null,
     balance: toBalanceDto(balance),
     costState: toCostStateDto(costState),
+  };
+}
+
+function toOpeningStockDraftDto(record) {
+  return {
+    id: String(record['_id']),
+    organizationId: String(record['organizationId']),
+    warehouseId: String(record['warehouseId']),
+    productId: String(record['productId']),
+    quantity: quantityDto(record['enteredQuantityMinorUnits']),
+    quantityBase: quantityDto(record['quantityBaseMinorUnits']),
+    unitCode: String(record['unitCode']),
+    conversionFactorSnapshot: String(record['conversionFactorSnapshot']),
+    packagingUnitId: record['packagingUnitId'] ? String(record['packagingUnitId']) : null,
+    batchNumber: record['batchNumber'] ?? null,
+    manufacturingDate: record['manufacturingDate'] ?? null,
+    expiryDate: record['expiryDate'] ?? null,
+    inventoryValue: moneyDto(record['inventoryValueMinorUnits']),
+    status: String(record['status']),
+    postedAt:
+      record['postedAt'] === null || record['postedAt'] === undefined
+        ? null
+        : record['postedAt'] instanceof Date
+          ? record['postedAt'].toISOString()
+          : String(record['postedAt']),
+    postedBy: record['postedBy'] ? String(record['postedBy']) : null,
+    postedMovementId: record['postedMovementId'] ? String(record['postedMovementId']) : null,
+    batchId: record['batchId'] ? String(record['batchId']) : null,
+    version: Number(record['version'] ?? 1),
   };
 }
 
@@ -528,6 +571,7 @@ function toReconciliationDto(result) {
 
 module.exports = {
   parseOpeningStock,
+  parseExpectedVersion,
   parseAdjustmentDraft,
   parseAdjustmentPostOptions,
   parseTransferDraft,
@@ -537,6 +581,7 @@ module.exports = {
   toBalanceDto,
   toCostStateDto,
   toOpeningStockResultDto,
+  toOpeningStockDraftDto,
   toAdjustmentDto,
   toExpiryItemDto,
   toTransferDto,

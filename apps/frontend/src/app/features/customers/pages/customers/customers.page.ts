@@ -18,6 +18,7 @@ import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { AppDateTimePipe } from '../../../../shared/format/date-time.pipe';
 import { applyPaginationMeta } from '../../../../shared/data-access/pagination';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -60,6 +61,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
     UiConfirmDialogComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    AppDateTimePipe,
   ],
   templateUrl: './customers.page.html',
   styleUrl: './customers.page.scss',

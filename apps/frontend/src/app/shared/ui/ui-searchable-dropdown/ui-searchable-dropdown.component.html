@@ -1,0 +1,305 @@
+<div
+  class="searchable-dropdown"
+  [class.searchable-dropdown--open]="open()"
+  [class.searchable-dropdown--disabled]="isControlDisabled()"
+  [class.searchable-dropdown--invalid]="isControlInvalid()"
+  [attr.data-testid]="effectiveTestId() ? effectiveTestId() + '-combobox' : null"
+  [attr.aria-required]="effectiveAriaRequired() ? 'true' : null"
+>
+  <select
+    tabindex="-1"
+    aria-hidden="true"
+    style="
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+      pointer-events: none;
+    "
+    [disabled]="isControlDisabled()"
+    [attr.data-testid]="effectiveTestId() || null"
+    [attr.aria-label]="ariaLabel() !== 'Select option' ? ariaLabel() : placeholder() || ariaLabel()"
+    [attr.aria-required]="effectiveAriaRequired() ? 'true' : null"
+    (focus)="triggerButton.focus()"
+    (change)="onNativeSelectChange($event)"
+  >
+    <option value="">{{ allOptionLabel() || placeholder() }}</option>
+    @if (currentValue() && !hasMatchingOption()) {
+      <option [value]="currentValue()" selected>{{ selectedLabel() || displayLabel() }}</option>
+    }
+    @for (opt of options(); track opt.value) {
+      <option [value]="opt.value" [selected]="opt.value === currentValue()">{{ opt.label }}</option>
+      @if (opt.meta && !opt.label.includes('(' + opt.meta + ')')) {
+        <option [value]="opt.value" [selected]="opt.value === currentValue()">
+          {{ opt.label }} ({{ opt.meta }})
+        </option>
+        @if (opt.meta.toUpperCase() !== opt.meta) {
+          <option [value]="opt.value" [selected]="opt.value === currentValue()">
+            {{ opt.label }} ({{ opt.meta.toUpperCase() }})
+          </option>
+        }
+        @if (opt.meta.includes(' · ')) {
+          @for (part of opt.meta.split(' · '); track $index) {
+            <option [value]="opt.value" [selected]="opt.value === currentValue()">
+              {{ opt.label }} ({{ part }})
+            </option>
+            @if (part.toUpperCase() !== part) {
+              <option [value]="opt.value" [selected]="opt.value === currentValue()">
+                {{ opt.label }} ({{ part.toUpperCase() }})
+              </option>
+            }
+          }
+        }
+      }
+    }
+  </select>
+  <button
+    #triggerButton
+    type="button"
+    class="searchable-dropdown__trigger"
+    [class.searchable-dropdown__trigger--active]="open()"
+    [class.searchable-dropdown__trigger--invalid]="isControlInvalid()"
+    [class.searchable-dropdown__trigger--readonly]="readonly()"
+    [disabled]="isControlDisabled()"
+    [id]="id() || undefined"
+    role="combobox"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-expanded]="open()"
+    aria-haspopup="listbox"
+    [attr.aria-controls]="listboxId"
+    [attr.aria-activedescendant]="activeOptionId()"
+    [attr.aria-invalid]="isControlInvalid() ? 'true' : null"
+    [attr.aria-required]="effectiveAriaRequired() ? 'true' : null"
+    [attr.aria-busy]="loading() ? 'true' : null"
+    [attr.data-testid]="testId() ? testId() + '-trigger' : 'dropdown-trigger'"
+    (click)="toggle($event)"
+    (keydown)="onTriggerKeydown($event)"
+  >
+    <span
+      class="searchable-dropdown__value"
+      [class.searchable-dropdown__value--placeholder]="isPlaceholder()"
+    >
+      {{ displayLabel() }}
+    </span>
+
+    @if (clearable() && currentValue() && !isControlDisabled() && !readonly()) {
+      <span
+        class="searchable-dropdown__clear-btn"
+        role="button"
+        tabindex="0"
+        aria-label="Clear selection"
+        [attr.data-testid]="testId() ? testId() + '-clear' : 'dropdown-clear'"
+        (click)="clearSelection($event)"
+        (keydown.enter)="clearSelection($event)"
+        (keydown.space)="clearSelection($event)"
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </span>
+    }
+
+    <svg
+      class="searchable-dropdown__chevron"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  </button>
+
+  <div
+    #panelRef
+    class="searchable-dropdown__panel"
+    [class.searchable-dropdown__panel--open]="open()"
+    [class.searchable-dropdown__panel--dropup]="dropup()"
+    [class]="panelClass()"
+    [id]="listboxId"
+    [attr.aria-hidden]="!open()"
+    role="listbox"
+    [attr.aria-label]="ariaLabel()"
+    [attr.data-testid]="testId() ? testId() + '-panel' : 'dropdown-panel'"
+    [style.maxHeight.px]="panelMaxHeight()"
+  >
+    @if (searchable()) {
+      <div class="searchable-dropdown__search">
+        <svg
+          class="searchable-dropdown__search-icon"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          #searchInput
+          type="text"
+          class="searchable-dropdown__search-input"
+          [placeholder]="searchPlaceholder()"
+          [value]="searchTerm()"
+          [attr.data-testid]="testId() ? testId() + '-search-input' : 'dropdown-search'"
+          (input)="onSearchInput($event)"
+          (keydown)="onSearchKeydown($event)"
+        />
+        @if (searchTerm()) {
+          <button
+            type="button"
+            class="searchable-dropdown__search-clear"
+            aria-label="Clear search"
+            (click)="clearSearch($event)"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        }
+      </div>
+    }
+
+    <div
+      #optionsContainer
+      class="searchable-dropdown__options"
+      [style.maxHeight.px]="optionsMaxHeight()"
+    >
+      @if (loading()) {
+        <div class="searchable-dropdown__loading" role="status" aria-live="polite">
+          <svg
+            class="searchable-dropdown__spinner"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" />
+            <path d="M12 3a9 9 0 0 1 9 9" />
+          </svg>
+          <span>Loading options…</span>
+        </div>
+      }
+
+      @if (!loading() && allOptionLabel() && (!searchTerm() || matchesAllOption())) {
+        <button
+          type="button"
+          class="searchable-dropdown__option"
+          [class.searchable-dropdown__option--selected]="currentValue() === ''"
+          [class.searchable-dropdown__option--focused]="focusedIndex() === -10"
+          role="option"
+          [id]="listboxId + '-opt-all'"
+          [attr.aria-selected]="currentValue() === ''"
+          [attr.data-testid]="testId() ? testId() + '-option-all' : 'dropdown-option-all'"
+          (click)="select('', $event)"
+        >
+          <span class="searchable-dropdown__option-text">{{ allOptionLabel() }}</span>
+          @if (currentValue() === '') {
+            <svg
+              class="searchable-dropdown__check"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+        </button>
+      }
+
+      @for (option of visibleOptions(); track option.value; let idx = $index) {
+        <button
+          type="button"
+          class="searchable-dropdown__option"
+          [class.searchable-dropdown__option--selected]="currentValue() === option.value"
+          [class.searchable-dropdown__option--focused]="focusedIndex() === idx"
+          role="option"
+          [id]="listboxId + '-opt-' + idx"
+          [attr.aria-selected]="currentValue() === option.value"
+          [attr.data-testid]="
+            testId() ? testId() + '-option-' + option.value : 'dropdown-option-' + option.value
+          "
+          (click)="select(option.value, $event)"
+        >
+          <div class="searchable-dropdown__option-main">
+            <span class="searchable-dropdown__option-text">{{ option.label }}</span>
+            @if (option.system) {
+              <span class="searchable-dropdown__system-badge">System</span>
+            }
+            @if (option.meta) {
+              <span class="searchable-dropdown__option-meta">{{ option.meta }}</span>
+            }
+          </div>
+          @if (currentValue() === option.value) {
+            <svg
+              class="searchable-dropdown__check"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+        </button>
+      }
+
+      @if (
+        !loading() && visibleOptions().length === 0 && (!allOptionLabel() || !matchesAllOption())
+      ) {
+        <div class="searchable-dropdown__empty">{{ emptyText() }}</div>
+      }
+    </div>
+  </div>
+</div>

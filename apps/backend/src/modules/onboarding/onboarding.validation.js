@@ -63,7 +63,7 @@ function parseActivationBody(body) {
   }
 
   return {
-    token: token.trim(),
+    token,
     password: password,
   };
 }

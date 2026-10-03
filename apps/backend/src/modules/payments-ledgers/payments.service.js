@@ -68,26 +68,42 @@ function mapDuplicate(error, message) {
 }
 
 function allocationReversalSourceType(targetType) {
-  if (targetType === 'sale') {
+  if (
+    targetType === 'sale' ||
+    targetType === 'customer_opening_receivable' ||
+    targetType === 'customer_manual_receivable'
+  ) {
     return 'customer_payment_allocation_reversal';
   }
   if (targetType === 'customer_advance') {
     return 'customer_payment_advance_reversal';
   }
-  if (targetType === 'purchase') {
+  if (
+    targetType === 'purchase' ||
+    targetType === 'supplier_opening_payable' ||
+    targetType === 'supplier_manual_payable'
+  ) {
     return 'supplier_payment_allocation_reversal';
   }
   return 'supplier_payment_advance_reversal';
 }
 
 function originalLedgerSourceType(targetType) {
-  if (targetType === 'sale') {
+  if (
+    targetType === 'sale' ||
+    targetType === 'customer_opening_receivable' ||
+    targetType === 'customer_manual_receivable'
+  ) {
     return 'customer_payment_allocation';
   }
   if (targetType === 'customer_advance') {
     return 'customer_payment_advance';
   }
-  if (targetType === 'purchase') {
+  if (
+    targetType === 'purchase' ||
+    targetType === 'supplier_opening_payable' ||
+    targetType === 'supplier_manual_payable'
+  ) {
     return 'supplier_payment_allocation';
   }
   return 'supplier_payment_advance';
@@ -123,6 +139,157 @@ function createPaymentsService(deps) {
   const auditWriter = createAuditWriter({
     append: (session, event) => store.appendAuditEvent(session, event),
   });
+
+  async function listCustomerReceivableTargets(organizationId, customerId, customer, session) {
+    const targets =
+      typeof listUnpaidCustomerSales === 'function'
+        ? (await listUnpaidCustomerSales(organizationId, customerId, session)).map((item) => ({
+            ...item,
+            targetType: 'sale',
+            targetId: String(item.id),
+          }))
+        : [];
+
+    if (typeof deps.listManualCustomerReceivableTargets === 'function') {
+      targets.push(
+        ...(await deps.listManualCustomerReceivableTargets(organizationId, customerId, session)),
+      );
+    }
+
+    const opening = customer?.openingBalance;
+    if (opening?.kind !== 'receivable' || !opening.ledgerEffectId) {
+      return applyTradeTargetAdjustments(organizationId, customerId, targets, session);
+    }
+
+    const openingTargetId = String(customerId);
+    const allocations = await store.listAllocationsByTarget(
+      organizationId,
+      'customer_opening_receivable',
+      openingTargetId,
+      session,
+    );
+    const allocated = allocations.reduce(
+      (sum, item) => sum + BigInt(String(item.allocatedAmountMinorUnits ?? '0')),
+      0n,
+    );
+    const outstanding = parseMoneyMinorUnits(opening.amount?.amount ?? '0') - allocated;
+    if (outstanding > 0n) {
+      targets.push({
+        id: `opening:${openingTargetId}`,
+        targetType: 'customer_opening_receivable',
+        targetId: openingTargetId,
+        invoiceNumber: 'Opening receivable',
+        invoiceDate: '0001-01-01',
+        dueDate: null,
+        sequence: '0',
+        outstandingMinorUnits: outstanding.toString(),
+      });
+    }
+    return applyTradeTargetAdjustments(organizationId, customerId, targets, session);
+  }
+
+  async function applyTradeTargetAdjustments(organizationId, customerId, targets, session) {
+    const effects =
+      typeof deps.listCustomerTradeTargetAdjustments === 'function'
+        ? await deps.listCustomerTradeTargetAdjustments(organizationId, customerId, session)
+        : [];
+    const adjustmentByTarget = new Map();
+    for (const effect of effects) {
+      const key = `${effect.targetType}:${effect.targetId}`;
+      adjustmentByTarget.set(
+        key,
+        (adjustmentByTarget.get(key) ?? 0n) + BigInt(String(effect.signedAmountMinorUnits ?? '0')),
+      );
+    }
+    const result = [];
+    for (const target of targets) {
+      let outstanding = BigInt(String(target.outstandingMinorUnits ?? '0'));
+      const targetType = target.targetType ?? 'sale';
+      const targetId = target.targetId ?? target.id;
+      outstanding += adjustmentByTarget.get(`${targetType}:${targetId}`) ?? 0n;
+      if (targetType === 'customer_manual_receivable') {
+        const allocations = await store.listAllocationsByTarget(
+          organizationId,
+          targetType,
+          targetId,
+          session,
+        );
+        outstanding -= allocations.reduce(
+          (sum, item) => sum + BigInt(String(item.allocatedAmountMinorUnits ?? '0')),
+          0n,
+        );
+      }
+      if (outstanding > 0n) {
+        result.push({ ...target, outstandingMinorUnits: outstanding.toString() });
+      }
+    }
+    return result;
+  }
+
+  async function listSupplierPayableTargets(organizationId, supplierId, supplier, session) {
+    const targets =
+      typeof listUnpaidSupplierPurchases === 'function'
+        ? (await listUnpaidSupplierPurchases(organizationId, supplierId, session)).map((item) => ({
+            ...item,
+            targetType: 'purchase',
+            targetId: String(item.id),
+          }))
+        : [];
+
+    if (typeof deps.listManualSupplierPayableTargets === 'function') {
+      targets.push(
+        ...(await deps.listManualSupplierPayableTargets(organizationId, supplierId, session)),
+      );
+    }
+
+    const opening = supplier?.openingBalance;
+    if (opening?.kind === 'payable' && opening.ledgerEffectId) {
+      const openingTargetId = String(supplierId);
+      const allocations = await store.listAllocationsByTarget(
+        organizationId,
+        'supplier_opening_payable',
+        openingTargetId,
+        session,
+      );
+      const allocated = allocations.reduce(
+        (sum, item) => sum + BigInt(String(item.allocatedAmountMinorUnits ?? '0')),
+        0n,
+      );
+      const outstanding = parseMoneyMinorUnits(opening.amount?.amount ?? '0') - allocated;
+      if (outstanding > 0n) {
+        targets.push({
+          id: `opening:${openingTargetId}`,
+          targetType: 'supplier_opening_payable',
+          targetId: openingTargetId,
+          purchaseDate: '0001-01-01',
+          dueDate: null,
+          sequence: '0',
+          outstandingMinorUnits: outstanding.toString(),
+        });
+      }
+    }
+
+    const effects = typeof deps.listSupplierPayableTargetAdjustments === 'function'
+      ? await deps.listSupplierPayableTargetAdjustments(organizationId, supplierId, session)
+      : [];
+    const adjustmentByTarget = new Map();
+    for (const effect of effects) {
+      const targetKey = `${effect.targetType}:${effect.targetId}`;
+      adjustmentByTarget.set(targetKey, (adjustmentByTarget.get(targetKey) ?? 0n) + BigInt(String(effect.signedAmountMinorUnits ?? '0')));
+    }
+    const result = [];
+    for (const target of targets) {
+      const targetType = target.targetType ?? 'purchase';
+      const targetId = target.targetId ?? target.id;
+      let outstanding = BigInt(String(target.outstandingMinorUnits ?? '0')) + (adjustmentByTarget.get(`${targetType}:${targetId}`) ?? 0n);
+      if (targetType === 'supplier_manual_payable') {
+        const allocations = await store.listAllocationsByTarget(organizationId, targetType, targetId, session);
+        outstanding -= allocations.reduce((sum, item) => sum + BigInt(String(item.allocatedAmountMinorUnits ?? '0')), 0n);
+      }
+      if (outstanding > 0n) result.push({ ...target, outstandingMinorUnits: outstanding.toString() });
+    }
+    return result;
+  }
 
   async function assertSupplierPaymentFieldsEditable(organizationId, body) {
     if (
@@ -195,19 +362,26 @@ function createPaymentsService(deps) {
   }
 
   async function resolveCustomerAllocationPlan(input, unpaidSales) {
+    const targetsById = new Map((unpaidSales ?? []).map((item) => [String(item.id), item]));
     if (input.allocationMode === 'invoice_specific') {
-      let totalAllocated = 0n;
-      for (const item of input.invoiceAllocations) {
-        totalAllocated += BigInt(item.allocatedAmountMinorUnits);
-      }
+      const totalAllocated = validateTargetAllocations(
+        input.invoiceAllocations,
+        targetsById,
+        'saleId',
+        'receivable',
+        input.amountMinorUnits,
+      );
       const paymentAmount = BigInt(input.amountMinorUnits);
-      if (totalAllocated > paymentAmount) {
-        throw validationFailed('Allocated amount exceeds payment amount', [
-          { field: 'allocations', message: 'allocations cannot exceed payment amount' },
-        ]);
-      }
       return {
-        saleAllocations: input.invoiceAllocations,
+        saleAllocations: input.invoiceAllocations.map((item) => {
+          const target = targetsById.get(String(item.saleId));
+          return {
+            saleId: item.saleId,
+            targetType: target?.targetType ?? 'sale',
+            targetId: target?.targetId ?? item.saleId,
+            allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
+          };
+        }),
         advanceAmountMinorUnits: (paymentAmount - totalAllocated).toString(),
       };
     }
@@ -216,6 +390,8 @@ function createPaymentsService(deps) {
     return {
       saleAllocations: plan.allocations.map((item) => ({
         saleId: item.saleId,
+        targetType: targetsById.get(String(item.saleId))?.targetType ?? 'sale',
+        targetId: targetsById.get(String(item.saleId))?.targetId ?? item.saleId,
         allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
       })),
       advanceAmountMinorUnits: plan.advanceAmountMinorUnits,
@@ -223,19 +399,26 @@ function createPaymentsService(deps) {
   }
 
   async function resolveAllocationPlan(input, unpaidPurchases) {
+    const targetsById = new Map((unpaidPurchases ?? []).map((item) => [String(item.id), item]));
     if (input.allocationMode === 'invoice_specific') {
-      let totalAllocated = 0n;
-      for (const item of input.invoiceAllocations) {
-        totalAllocated += BigInt(item.allocatedAmountMinorUnits);
-      }
+      const totalAllocated = validateTargetAllocations(
+        input.invoiceAllocations,
+        targetsById,
+        'purchaseId',
+        'payable',
+        input.amountMinorUnits,
+      );
       const paymentAmount = BigInt(input.amountMinorUnits);
-      if (totalAllocated > paymentAmount) {
-        throw validationFailed('Allocated amount exceeds payment amount', [
-          { field: 'allocations', message: 'allocations cannot exceed payment amount' },
-        ]);
-      }
       return {
-        purchaseAllocations: input.invoiceAllocations,
+        purchaseAllocations: input.invoiceAllocations.map((item) => {
+          const target = targetsById.get(String(item.purchaseId));
+          return {
+            purchaseId: item.purchaseId,
+            targetType: target?.targetType ?? 'purchase',
+            targetId: target?.targetId ?? item.purchaseId,
+            allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
+          };
+        }),
         advanceAmountMinorUnits: (paymentAmount - totalAllocated).toString(),
       };
     }
@@ -244,9 +427,55 @@ function createPaymentsService(deps) {
     return {
       purchaseAllocations: plan.allocations.map((item) => ({
         purchaseId: item.purchaseId,
+        targetType: targetsById.get(String(item.purchaseId))?.targetType ?? 'purchase',
+        targetId: targetsById.get(String(item.purchaseId))?.targetId ?? item.purchaseId,
         allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
       })),
       advanceAmountMinorUnits: plan.advanceAmountMinorUnits,
+    };
+  }
+
+  function validateTargetAllocations(allocations, targetsById, idField, targetLabel, paymentAmount) {
+    const seen = new Set();
+    let totalAllocated = 0n;
+    for (const item of allocations) {
+      const targetId = String(item[idField]);
+      if (seen.has(targetId)) {
+        throw validationFailed('Duplicate allocation target', [
+          { field: 'allocations', message: `${targetLabel} target ${targetId} is duplicated` },
+        ]);
+      }
+      seen.add(targetId);
+      const target = targetsById.get(targetId);
+      if (!target) {
+        throw validationFailed(`Target is not an unpaid ${targetLabel}`, [
+          { field: 'allocations', message: `${targetLabel} target ${targetId} has no outstanding balance` },
+        ]);
+      }
+      const allocated = BigInt(item.allocatedAmountMinorUnits);
+      if (allocated > BigInt(String(target.outstandingMinorUnits ?? '0'))) {
+        throw validationFailed(`Allocation exceeds outstanding ${targetLabel}`, [
+          { field: 'allocations', message: `allocation for ${targetId} exceeds outstanding` },
+        ]);
+      }
+      totalAllocated += allocated;
+    }
+    if (totalAllocated > BigInt(paymentAmount)) {
+      throw validationFailed('Allocated amount exceeds payment amount', [
+        { field: 'allocations', message: 'allocations cannot exceed payment amount' },
+      ]);
+    }
+    return totalAllocated;
+  }
+
+  function paymentLineage(correction) {
+    if (!correction) return null;
+    return {
+      reversalPaymentId: String(correction['_id']),
+      replacementPaymentId: correction.replacementPaymentId
+        ? String(correction.replacementPaymentId)
+        : null,
+      correctionStatus: correction.replacementPaymentId ? 'corrected' : 'reversed',
     };
   }
 
@@ -276,11 +505,13 @@ function createPaymentsService(deps) {
     const createdAllocations = [];
 
     for (const item of input.purchaseAllocations) {
+      const targetType = item.targetType ?? 'purchase';
+      const targetId = item.targetId ?? item.purchaseId;
       const allocation = await store.insertAllocation(session, {
         organizationId: input.organizationId,
         paymentId,
-        targetType: 'purchase',
-        targetId: item.purchaseId,
+        targetType,
+        targetId,
         allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
         currency: input.currency ?? 'PKR',
         status: 'posted',
@@ -383,6 +614,88 @@ function createPaymentsService(deps) {
     });
   }
 
+  async function applySupplierAdvanceInSession(session, input) {
+    const amount = BigInt(String(input.amountMinorUnits ?? '0'));
+    if (amount <= 0n) {
+      return { payableEffect: null, advanceEffect: null };
+    }
+    const payableEffect = await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'supplier',
+      supplierId: input.supplierId,
+      effectKind: 'payable',
+      signedAmountMinorUnits: `-${amount.toString()}`,
+      currency: input.currency ?? 'PKR',
+      sourceType: 'supplier_advance_application',
+      sourceId: input.purchaseId,
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    const advanceEffect = await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'supplier',
+      supplierId: input.supplierId,
+      effectKind: 'supplier_advance',
+      signedAmountMinorUnits: `-${amount.toString()}`,
+      currency: input.currency ?? 'PKR',
+      sourceType: 'supplier_advance_consumption',
+      sourceId: input.purchaseId,
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    return { payableEffect, advanceEffect };
+  }
+
+  async function reverseSupplierAdvanceApplicationInSession(session, input) {
+    const [payableEffects, advanceEffects] = await Promise.all([
+      ledgersService.listEffectsBySource(
+        input.organizationId,
+        'supplier_advance_application',
+        input.purchaseId,
+        session,
+      ),
+      ledgersService.listEffectsBySource(
+        input.organizationId,
+        'supplier_advance_consumption',
+        input.purchaseId,
+        session,
+      ),
+    ]);
+    const payableEffect = payableEffects[0];
+    const advanceEffect = advanceEffects[0];
+    if (!payableEffect || !advanceEffect) {
+      return null;
+    }
+    const amount = -BigInt(String(advanceEffect.signedAmountMinorUnits));
+    await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'supplier',
+      supplierId: input.supplierId,
+      effectKind: 'payable',
+      signedAmountMinorUnits: amount.toString(),
+      currency: input.currency ?? 'PKR',
+      sourceType: 'purchase_cancellation_advance_payable_reversal',
+      sourceId: input.purchaseId,
+      reversalOfId: payableEffect.id ?? payableEffect['_id'],
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'supplier',
+      supplierId: input.supplierId,
+      effectKind: 'supplier_advance',
+      signedAmountMinorUnits: amount.toString(),
+      currency: input.currency ?? 'PKR',
+      sourceType: 'purchase_cancellation_advance_reinstatement',
+      sourceId: input.purchaseId,
+      reversalOfId: advanceEffect.id ?? advanceEffect['_id'],
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    return amount.toString();
+  }
+
   async function postCustomerPaymentInSession(session, input) {
     const payment = await store.insertPayment(session, {
       organizationId: input.organizationId,
@@ -404,11 +717,13 @@ function createPaymentsService(deps) {
     const createdAllocations = [];
 
     for (const item of input.saleAllocations) {
+      const targetType = item.targetType ?? 'sale';
+      const targetId = item.targetId ?? item.saleId;
       const allocation = await store.insertAllocation(session, {
         organizationId: input.organizationId,
         paymentId,
-        targetType: 'sale',
-        targetId: item.saleId,
+        targetType,
+        targetId,
         allocatedAmountMinorUnits: item.allocatedAmountMinorUnits,
         currency: input.currency ?? 'PKR',
         status: 'posted',
@@ -508,24 +823,154 @@ function createPaymentsService(deps) {
     });
   }
 
+  async function applyCustomerAdvanceInSession(session, input) {
+    const amount = BigInt(String(input.amountMinorUnits ?? '0'));
+    if (amount <= 0n) {
+      return { receivableEffect: null, advanceEffect: null };
+    }
+    const receivableEffect = await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'customer',
+      customerId: input.customerId,
+      effectKind: 'receivable',
+      signedAmountMinorUnits: `-${amount.toString()}`,
+      currency: input.currency ?? 'PKR',
+      sourceType: 'customer_advance_application',
+      sourceId: input.saleId,
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    const advanceEffect = await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'customer',
+      customerId: input.customerId,
+      effectKind: 'advance',
+      signedAmountMinorUnits: `-${amount.toString()}`,
+      currency: input.currency ?? 'PKR',
+      sourceType: 'customer_advance_consumption',
+      sourceId: input.saleId,
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    return { receivableEffect, advanceEffect };
+  }
+
+  async function reverseCustomerAdvanceApplicationInSession(session, input) {
+    const [receivableEffects, advanceEffects] = await Promise.all([
+      ledgersService.listEffectsBySource(
+        input.organizationId,
+        'customer_advance_application',
+        input.saleId,
+        session,
+      ),
+      ledgersService.listEffectsBySource(
+        input.organizationId,
+        'customer_advance_consumption',
+        input.saleId,
+        session,
+      ),
+    ]);
+    const receivableEffect = receivableEffects[0];
+    const advanceEffect = advanceEffects[0];
+    if (!receivableEffect || !advanceEffect) {
+      return null;
+    }
+    const amount = -BigInt(String(advanceEffect.signedAmountMinorUnits));
+    await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'customer',
+      customerId: input.customerId,
+      effectKind: 'receivable',
+      signedAmountMinorUnits: amount.toString(),
+      currency: input.currency ?? 'PKR',
+      sourceType: 'sale_cancellation_advance_receivable_reversal',
+      sourceId: input.saleId,
+      reversalOfId: receivableEffect.id ?? receivableEffect['_id'],
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    await ledgersService.postLedgerEffect(session, {
+      organizationId: input.organizationId,
+      partyType: 'customer',
+      customerId: input.customerId,
+      effectKind: 'advance',
+      signedAmountMinorUnits: amount.toString(),
+      currency: input.currency ?? 'PKR',
+      sourceType: 'sale_cancellation_advance_reinstatement',
+      sourceId: input.saleId,
+      reversalOfId: advanceEffect.id ?? advanceEffect['_id'],
+      postedAt: input.postedAt,
+      postedBy: input.postedBy,
+    });
+    return amount.toString();
+  }
+
   return {
     allocateGeneralSupplierPayment,
     allocateGeneralCustomerPayment,
     postSupplierPaymentInSession,
     postSupplierPayableEffect,
+    applySupplierAdvanceInSession,
+    reverseSupplierAdvanceApplicationInSession,
+    listCustomerLoanReceivableBalances: (organizationId) =>
+      ledgersService.listCustomerLoanReceivableBalances(organizationId),
+    async assertCustomerTradeTargetUnadjusted(organizationId, customerId, targetType, targetId) {
+      const effects =
+        typeof deps.listCustomerTradeTargetAdjustments === 'function'
+          ? await deps.listCustomerTradeTargetAdjustments(organizationId, customerId)
+          : [];
+      const net = effects
+        .filter(
+          (effect) =>
+            effect.targetType === targetType && String(effect.targetId) === String(targetId),
+        )
+        .reduce(
+          (sum, effect) => sum + BigInt(String(effect.signedAmountMinorUnits ?? '0')),
+          0n,
+        );
+      if (net !== 0n) {
+        throw conflict('Trade receivable target has an active balance adjustment; reverse it first');
+      }
+    },
+    async assertSupplierPayableTargetUnadjusted(
+      organizationId,
+      supplierId,
+      targetType,
+      targetId,
+      session,
+    ) {
+      const effects =
+        typeof deps.listSupplierPayableTargetAdjustments === 'function'
+          ? await deps.listSupplierPayableTargetAdjustments(organizationId, supplierId, session)
+          : [];
+      const net = effects
+        .filter(
+          (effect) =>
+            effect.targetType === targetType && String(effect.targetId) === String(targetId),
+        )
+        .reduce(
+          (sum, effect) => sum + BigInt(String(effect.signedAmountMinorUnits ?? '0')),
+          0n,
+        );
+      if (net !== 0n) {
+        throw conflict('Supplier payable target has an active balance adjustment; reverse it first');
+      }
+    },
     postCustomerPaymentInSession,
     postCustomerReceivableEffect,
+    applyCustomerAdvanceInSession,
+    reverseCustomerAdvanceApplicationInSession,
 
     async listLedgerEffectsBySource(organizationId, sourceType, sourceId, session) {
       return ledgersService.listEffectsBySource(organizationId, sourceType, sourceId, session);
     },
 
-    async listPurchaseAllocations(organizationId, purchaseId) {
-      return store.listAllocationsByTarget(organizationId, 'purchase', purchaseId);
+    async listPurchaseAllocations(organizationId, purchaseId, session) {
+      return store.listAllocationsByTarget(organizationId, 'purchase', purchaseId, session);
     },
 
-    async getSupplierPaymentRaw(organizationId, paymentId) {
-      return store.findPaymentById(organizationId, paymentId);
+    async getSupplierPaymentRaw(organizationId, paymentId, session) {
+      return store.findPaymentById(organizationId, paymentId, session);
     },
 
     async getCustomerPaymentRaw(organizationId, paymentId) {
@@ -536,26 +981,43 @@ function createPaymentsService(deps) {
       return ledgersService.sumCustomerReceivable(organizationId, customerId);
     },
 
-    async sumSupplierPayable(organizationId, supplierId) {
-      return ledgersService.sumSupplierPayable(organizationId, supplierId);
+    async sumCustomerAdvance(organizationId, customerId) {
+      return ledgersService.sumCustomerAdvance(organizationId, customerId);
+    },
+
+    async sumSupplierPayable(organizationId, supplierId, session) {
+      return ledgersService.sumSupplierPayable(organizationId, supplierId, session);
+    },
+
+    async sumSupplierAdvance(organizationId, supplierId, session) {
+      return ledgersService.sumSupplierAdvance(organizationId, supplierId, session);
     },
 
     async listCustomerReceivableBalances(organizationId) {
       return ledgersService.listCustomerReceivableBalances(organizationId);
     },
 
+    async listCustomerAdvanceBalances(organizationId) {
+      return ledgersService.listCustomerAdvanceBalances(organizationId);
+    },
+
     async listSupplierPayableBalances(organizationId) {
       return ledgersService.listSupplierPayableBalances(organizationId);
     },
 
+    async listSupplierAdvanceBalances(organizationId) {
+      return ledgersService.listSupplierAdvanceBalances(organizationId);
+    },
+
     async listUnpaidPurchasesForSupplier(organizationId, supplierId) {
-      if (typeof listUnpaidSupplierPurchases !== 'function') {
-        return { items: [] };
-      }
-      const items = await listUnpaidSupplierPurchases(organizationId, supplierId);
+      const supplier = suppliersService
+        ? await suppliersService.getSupplier(organizationId, supplierId)
+        : null;
+      const items = await listSupplierPayableTargets(organizationId, supplierId, supplier);
       return {
         items: items.map((item) => ({
           id: String(item.id),
+          targetType: item.targetType ?? 'purchase',
           purchaseDate: String(item.purchaseDate),
           dueDate: item.dueDate ?? null,
           sequence: item.sequence ?? null,
@@ -566,6 +1028,13 @@ function createPaymentsService(deps) {
           outstandingMinorUnits: String(item.outstandingMinorUnits ?? '0'),
         })),
       };
+    },
+
+    async listSupplierPayableTargetsForAdjustment(organizationId, supplierId, session) {
+      const supplier = suppliersService
+        ? await suppliersService.getSupplier(organizationId, supplierId)
+        : null;
+      return listSupplierPayableTargets(organizationId, supplierId, supplier, session);
     },
 
     async listSupplierLedgerSuppliers(organizationId, search = '') {
@@ -605,13 +1074,27 @@ function createPaymentsService(deps) {
         },
         { skip: query.skip, pageSize: query.pageSize },
       );
+      const correctionRows = await store.listCorrectionsByOriginalIds(
+        organizationId,
+        items.map((item) => item['_id']),
+      );
+      const correctionByOriginalId = new Map(
+        correctionRows.map((item) => [String(item.correctionOfId), item]),
+      );
       const mapped = [];
       for (const item of items) {
         const allocations = await store.listAllocationsByPayment(
           organizationId,
           String(item['_id']),
         );
-        mapped.push(toPaymentDto(item, allocations));
+        mapped.push(
+          toPaymentDto(
+            item,
+            allocations,
+            null,
+            paymentLineage(correctionByOriginalId.get(String(item['_id']))),
+          ),
+        );
       }
       return { items: mapped, total };
     },
@@ -622,7 +1105,10 @@ function createPaymentsService(deps) {
         throw notFound('Supplier payment not found');
       }
       const allocations = await store.listAllocationsByPayment(organizationId, paymentId);
-      return toPaymentDto(payment, allocations);
+      const correction = payment.correctionOfId
+        ? null
+        : await store.findPaymentByCorrectionOfId(organizationId, paymentId);
+      return toPaymentDto(payment, allocations, null, paymentLineage(correction));
     },
 
     async listSupplierLedger(organizationId, supplierId) {
@@ -633,8 +1119,9 @@ function createPaymentsService(deps) {
     },
 
     async reconcileSupplierLedger(organizationId, supplierId, options = {}) {
+      let supplier = null;
       if (suppliersService) {
-        await suppliersService.getSupplier(organizationId, supplierId);
+        supplier = await suppliersService.getSupplier(organizationId, supplierId);
       }
 
       const ledger = await ledgersService.listSupplierEffects(organizationId, supplierId);
@@ -643,7 +1130,11 @@ function createPaymentsService(deps) {
       for (const payment of payments) {
         const items = await store.listAllocationsByPayment(organizationId, String(payment['_id']));
         for (const item of items) {
-          allocations.push(item);
+          allocations.push(
+            payment.correctionOfId
+              ? { ...item, allocatedAmountMinorUnits: `-${item.allocatedAmountMinorUnits}` }
+              : item,
+          );
         }
       }
 
@@ -687,6 +1178,11 @@ function createPaymentsService(deps) {
         effects,
         allocations,
         accountMovements,
+        payableTargetTotalMinorUnits: (await listSupplierPayableTargets(
+          organizationId,
+          supplierId,
+          supplier,
+        )).reduce((sum, item) => sum + BigInt(String(item.outstandingMinorUnits ?? '0')), 0n).toString(),
         expectedPayableMinorUnits: options.expectedPayableMinorUnits,
         expectedAdvanceMinorUnits: options.expectedAdvanceMinorUnits,
         expectedAllocationTotalMinorUnits: options.expectedAllocationTotalMinorUnits,
@@ -705,8 +1201,16 @@ function createPaymentsService(deps) {
           amount: formatMoneyMinorUnits(BigInt(result.advanceMinorUnits)),
           currency: 'PKR',
         },
+        netPayable: {
+          amount: formatMoneyMinorUnits(BigInt(result.netPayableMinorUnits)),
+          currency: 'PKR',
+        },
         allocationTotal: {
           amount: formatMoneyMinorUnits(BigInt(result.allocationTotalMinorUnits)),
+          currency: 'PKR',
+        },
+        payableTargetTotal: {
+          amount: formatMoneyMinorUnits(BigInt(result.payableTargetTotalMinorUnits ?? '0')),
           currency: 'PKR',
         },
         accountMovementTotal: {
@@ -767,55 +1271,39 @@ function createPaymentsService(deps) {
             let unpaidPurchases = [];
             let unpaidById = new Map();
 
-            if (
-              input.allocationMode === 'general' &&
-              typeof listUnpaidSupplierPurchases === 'function'
-            ) {
-              unpaidPurchases = await listUnpaidSupplierPurchases(organizationId, input.supplierId);
+            if (input.allocationMode === 'general') {
+              unpaidPurchases = await listSupplierPayableTargets(
+                organizationId,
+                input.supplierId,
+                supplier,
+                session,
+              );
               unpaidById = new Map(unpaidPurchases.map((item) => [String(item.id), item]));
             }
 
-            if (
-              input.allocationMode === 'invoice_specific' &&
-              typeof listUnpaidSupplierPurchases === 'function'
-            ) {
-              unpaidPurchases = await listUnpaidSupplierPurchases(organizationId, input.supplierId);
+            if (input.allocationMode === 'invoice_specific') {
+              unpaidPurchases = await listSupplierPayableTargets(
+                organizationId,
+                input.supplierId,
+                supplier,
+                session,
+              );
               unpaidById = new Map(unpaidPurchases.map((item) => [String(item.id), item]));
-              for (const allocation of input.invoiceAllocations) {
-                const unpaid = unpaidById.get(allocation.purchaseId);
-                if (!unpaid) {
-                  throw validationFailed('Purchase is not an unpaid payable target', [
-                    {
-                      field: 'allocations',
-                      message: `purchase ${allocation.purchaseId} has no outstanding payable`,
-                    },
-                  ]);
-                }
-                if (
-                  BigInt(allocation.allocatedAmountMinorUnits) >
-                  BigInt(unpaid.outstandingMinorUnits)
-                ) {
-                  throw validationFailed('Allocation exceeds outstanding purchase payable', [
-                    {
-                      field: 'allocations',
-                      message: `allocation for ${allocation.purchaseId} exceeds outstanding`,
-                    },
-                  ]);
-                }
-              }
             }
 
             // Pre-fetch prior allocation totals so post-check can compute purchaseTotal.
             const priorAllocTotals = new Map();
-            if (
-              input.allocationMode === 'invoice_specific' &&
-              typeof listUnpaidSupplierPurchases === 'function'
-            ) {
+            if (input.allocationMode === 'invoice_specific') {
               for (const item of input.invoiceAllocations) {
+                const target = unpaidById.get(String(item.purchaseId));
+                if (target?.targetType !== 'purchase') {
+                  continue;
+                }
                 const existing = await store.listAllocationsByTarget(
                   organizationId,
                   'purchase',
-                  item.purchaseId,
+                  target.targetId,
+                  session,
                 );
                 const total = existing.reduce(
                   (sum, a) => sum + BigInt(a.allocatedAmountMinorUnits),
@@ -850,10 +1338,7 @@ function createPaymentsService(deps) {
             }
 
             // Post-allocation outstanding validation for invoice-specific payments.
-            if (
-              input.allocationMode === 'invoice_specific' &&
-              typeof listUnpaidSupplierPurchases === 'function'
-            ) {
+            if (input.allocationMode === 'invoice_specific') {
               for (const alloc of plan.purchaseAllocations) {
                 const purchaseUnpaid = unpaidById.get(String(alloc.purchaseId));
                 if (!purchaseUnpaid) {
@@ -865,6 +1350,7 @@ function createPaymentsService(deps) {
                   organizationId,
                   'purchase',
                   alloc.purchaseId,
+                  session,
                 );
                 const currentTotal = currentAllocs.reduce(
                   (sum, a) => sum + BigInt(a.allocatedAmountMinorUnits),
@@ -905,7 +1391,7 @@ function createPaymentsService(deps) {
         { paymentId, reason: input.reason, replacement: input.replacement },
         async () => {
           const dto = await transactionRunner.run(async (session) => {
-            const original = await store.findPaymentById(organizationId, paymentId);
+            const original = await store.findPaymentById(organizationId, paymentId, session);
             if (original === null) {
               throw notFound('Payment not found');
             }
@@ -960,6 +1446,7 @@ function createPaymentsService(deps) {
             const allocations = await store.listAllocationsByPayment(
               organizationId,
               originalPaymentId,
+              session,
             );
 
             for (const allocation of allocations) {
@@ -985,11 +1472,16 @@ function createPaymentsService(deps) {
               const originalEffect = originalEffects[0];
               const signedAmount = originalEffect
                 ? negateMinorUnits(originalEffect.signedAmountMinorUnits)
-                : original.partyType === 'customer' && allocation.targetType === 'sale'
+                : original.partyType === 'customer' &&
+                    (allocation.targetType === 'sale' ||
+                      allocation.targetType === 'customer_opening_receivable' ||
+                      allocation.targetType === 'customer_manual_receivable')
                   ? String(allocation.allocatedAmountMinorUnits)
                   : original.partyType === 'customer'
                     ? negateMinorUnits(allocation.allocatedAmountMinorUnits)
-                    : allocation.targetType === 'purchase'
+                    : allocation.targetType === 'purchase' ||
+                        allocation.targetType === 'supplier_opening_payable' ||
+                        allocation.targetType === 'supplier_manual_payable'
                       ? String(allocation.allocatedAmountMinorUnits)
                       : negateMinorUnits(allocation.allocatedAmountMinorUnits);
 
@@ -1000,7 +1492,12 @@ function createPaymentsService(deps) {
                 supplierId: original.supplierId,
                 effectKind:
                   originalEffect?.effectKind ??
-                  (allocation.targetType === 'sale' || allocation.targetType === 'purchase'
+                  (allocation.targetType === 'sale' ||
+                  allocation.targetType === 'customer_opening_receivable' ||
+                  allocation.targetType === 'customer_manual_receivable' ||
+                  allocation.targetType === 'purchase' ||
+                  allocation.targetType === 'supplier_opening_payable' ||
+                  allocation.targetType === 'supplier_manual_payable'
                     ? original.partyType === 'customer'
                       ? 'receivable'
                       : 'payable'
@@ -1063,10 +1560,30 @@ function createPaymentsService(deps) {
                   ...input.replacement,
                   accountId: input.replacement.accountId ?? String(original.accountId),
                 });
-                const unpaidSales =
-                  typeof listUnpaidCustomerSales === 'function'
-                    ? await listUnpaidCustomerSales(organizationId, replacementInput.customerId)
-                    : [];
+                const replacementCustomer = await customersService.getCustomer(
+                  organizationId,
+                  replacementInput.customerId,
+                );
+                if (replacementCustomer.status !== 'active') {
+                  throw validationFailed('Customer must be active', [
+                    { field: 'customerId', message: 'customer must be active' },
+                  ]);
+                }
+                const replacementAccount = await accountsService.getAccount(
+                  organizationId,
+                  replacementInput.accountId,
+                );
+                if (replacementAccount.status !== 'active') {
+                  throw validationFailed('Account must be active', [
+                    { field: 'accountId', message: 'account must be active' },
+                  ]);
+                }
+                const unpaidSales = await listCustomerReceivableTargets(
+                  organizationId,
+                  replacementInput.customerId,
+                  replacementCustomer,
+                  session,
+                );
                 const plan = await resolveCustomerAllocationPlan(replacementInput, unpaidSales);
                 const postedReplacement = await postCustomerPaymentInSession(session, {
                   organizationId,
@@ -1097,10 +1614,30 @@ function createPaymentsService(deps) {
                   ...input.replacement,
                   accountId: input.replacement.accountId ?? String(original.accountId),
                 });
-                const unpaidPurchases =
-                  typeof listUnpaidSupplierPurchases === 'function'
-                    ? await listUnpaidSupplierPurchases(organizationId, replacementInput.supplierId)
-                    : [];
+                const replacementSupplier = await suppliersService.getSupplier(
+                  organizationId,
+                  replacementInput.supplierId,
+                );
+                if (replacementSupplier.status !== 'active') {
+                  throw validationFailed('Supplier must be active', [
+                    { field: 'supplierId', message: 'supplier must be active' },
+                  ]);
+                }
+                const replacementAccount = await accountsService.getAccount(
+                  organizationId,
+                  replacementInput.accountId,
+                );
+                if (replacementAccount.status !== 'active') {
+                  throw validationFailed('Account must be active', [
+                    { field: 'accountId', message: 'account must be active' },
+                  ]);
+                }
+                const unpaidPurchases = await listSupplierPayableTargets(
+                  organizationId,
+                  replacementInput.supplierId,
+                  replacementSupplier,
+                  session,
+                );
                 const plan = await resolveAllocationPlan(replacementInput, unpaidPurchases);
                 const postedReplacement = await postSupplierPaymentInSession(session, {
                   organizationId,
@@ -1145,9 +1682,10 @@ function createPaymentsService(deps) {
             const reversalAllocations = await store.listAllocationsByPayment(
               organizationId,
               reversalPaymentId,
+              session,
             );
             return {
-              original: toPaymentDto(original, allocations),
+              original: toPaymentDto(original, allocations, null, paymentLineage(reversalPayment)),
               reversal: toPaymentDto(reversalPayment, reversalAllocations),
               replacement: replacementDto,
             };
@@ -1158,8 +1696,8 @@ function createPaymentsService(deps) {
       return wrapIdempotentResult(result);
     },
 
-    async listSaleAllocations(organizationId, saleId) {
-      return store.listAllocationsByTarget(organizationId, 'sale', saleId);
+    async listSaleAllocations(organizationId, saleId, session) {
+      return store.listAllocationsByTarget(organizationId, 'sale', saleId, session);
     },
 
     async listCustomerPayments(organizationId, query = {}) {
@@ -1175,14 +1713,48 @@ function createPaymentsService(deps) {
         },
         { skip: query.skip, pageSize: query.pageSize },
       );
-      const mapped = [];
+
+      // Batch-resolve allocations for the page (sequential per payment, as before)
+      const itemsWithAllocations = [];
       for (const item of items) {
         const allocations = await store.listAllocationsByPayment(
           organizationId,
           String(item['_id']),
         );
-        mapped.push(toPaymentDto(item, allocations));
+        itemsWithAllocations.push({ item, allocations });
       }
+
+      const correctionRows = await store.listCorrectionsByOriginalIds(
+        organizationId,
+        items.map((item) => item['_id']),
+      );
+      const correctionByOriginalId = new Map(
+        correctionRows.map((item) => [String(item.correctionOfId), item]),
+      );
+
+      // Batch-resolve customer summaries in a single query
+      const customerIdSet = new Set();
+      for (const { item } of itemsWithAllocations) {
+        if (item['customerId']) {
+          customerIdSet.add(String(item['customerId']));
+        }
+      }
+      const customerSummaries = customersService
+        ? await customersService.listCustomerSummariesByIds(organizationId, [...customerIdSet])
+        : [];
+      const customerMap = new Map(customerSummaries.map((c) => [String(c.id), c]));
+
+      const mapped = itemsWithAllocations.map(({ item, allocations }) => {
+        const customer = item['customerId']
+          ? (customerMap.get(String(item['customerId'])) ?? null)
+          : null;
+        return toPaymentDto(
+          item,
+          allocations,
+          customer,
+          paymentLineage(correctionByOriginalId.get(String(item['_id']))),
+        );
+      });
       return { items: mapped, total };
     },
 
@@ -1192,7 +1764,16 @@ function createPaymentsService(deps) {
         throw notFound('Customer payment not found');
       }
       const allocations = await store.listAllocationsByPayment(organizationId, paymentId);
-      return toPaymentDto(payment, allocations);
+      const correction = payment.correctionOfId
+        ? null
+        : await store.findPaymentByCorrectionOfId(organizationId, paymentId);
+      const customer =
+        customersService && payment['customerId']
+          ? await customersService
+              .listCustomerSummariesByIds(organizationId, [String(payment['customerId'])])
+              .then((list) => list[0] ?? null)
+          : null;
+      return toPaymentDto(payment, allocations, customer, paymentLineage(correction));
     },
 
     async listCustomerLedger(organizationId, customerId) {
@@ -1203,13 +1784,14 @@ function createPaymentsService(deps) {
     },
 
     async listUnpaidSalesForCustomer(organizationId, customerId) {
-      if (typeof listUnpaidCustomerSales !== 'function') {
-        return { items: [] };
-      }
-      const items = await listUnpaidCustomerSales(organizationId, customerId);
+      const customer = customersService
+        ? await customersService.getCustomer(organizationId, customerId)
+        : null;
+      const items = await listCustomerReceivableTargets(organizationId, customerId, customer);
       return {
         items: items.map((item) => ({
           id: String(item.id),
+          targetType: item.targetType ?? 'sale',
           invoiceNumber: item.invoiceNumber ?? null,
           invoiceDate: String(item.invoiceDate),
           dueDate: item.dueDate ?? null,
@@ -1221,6 +1803,13 @@ function createPaymentsService(deps) {
           outstandingMinorUnits: String(item.outstandingMinorUnits ?? '0'),
         })),
       };
+    },
+
+    async listCustomerReceivableTargetsForAdjustment(organizationId, customerId, session) {
+      const customer = customersService
+        ? await customersService.getCustomer(organizationId, customerId)
+        : null;
+      return listCustomerReceivableTargets(organizationId, customerId, customer, session);
     },
 
     async postCustomerPayment(organizationId, body, actor, idempotencyKey) {
@@ -1270,42 +1859,12 @@ function createPaymentsService(deps) {
               ]);
             }
 
-            let unpaidSales = [];
-            let unpaidById = new Map();
-
-            if (typeof listUnpaidCustomerSales === 'function') {
-              unpaidSales = await listUnpaidCustomerSales(organizationId, input.customerId);
-              unpaidById = new Map(unpaidSales.map((item) => [String(item.id), item]));
-            }
-
-            if (
-              input.allocationMode === 'invoice_specific' &&
-              typeof listUnpaidCustomerSales === 'function'
-            ) {
-              for (const allocation of input.invoiceAllocations) {
-                const unpaid = unpaidById.get(allocation.saleId);
-                if (!unpaid) {
-                  throw validationFailed('Sale is not an unpaid receivable target', [
-                    {
-                      field: 'allocations',
-                      message: `sale ${allocation.saleId} has no outstanding receivable`,
-                    },
-                  ]);
-                }
-                if (
-                  BigInt(allocation.allocatedAmountMinorUnits) >
-                  BigInt(unpaid.outstandingMinorUnits)
-                ) {
-                  throw validationFailed('Allocation exceeds outstanding sale receivable', [
-                    {
-                      field: 'allocations',
-                      message: `allocation for ${allocation.saleId} exceeds outstanding`,
-                    },
-                  ]);
-                }
-              }
-            }
-
+            const unpaidSales = await listCustomerReceivableTargets(
+              organizationId,
+              input.customerId,
+              customer,
+              session,
+            );
             const plan = await resolveCustomerAllocationPlan(input, unpaidSales);
             const postedAt = now();
 

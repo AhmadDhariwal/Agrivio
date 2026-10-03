@@ -36,6 +36,16 @@ import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.compon
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
 import {
+  UiSearchableDropdownComponent,
+  DropdownOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatAccountOption,
+  formatCustomerOption,
+  formatProductOption,
+  formatWarehouseOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import {
   fieldValidationMessage,
   hasRequiredValidator,
   setRequiredValidator,
@@ -54,6 +64,7 @@ import {
     UiAlertComponent,
     UiLoadingStateComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
   ],
   templateUrl: './return-without-invoice.page.html',
   styleUrl: './return-without-invoice.page.scss',
@@ -72,6 +83,8 @@ export class ReturnWithoutInvoicePage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly customerSearchChanges = new Subject<string>();
   private readonly productSearchChanges = new Subject<string>();
+  private readonly knownProducts = new Map<string, ProductRecord>();
+  private readonly knownCustomers = new Map<string, CustomerRecord>();
 
   readonly loading = signal(true);
   readonly submitting = signal(false);
@@ -83,6 +96,20 @@ export class ReturnWithoutInvoicePage {
   readonly accounts = signal<AccountRecord[]>([]);
   readonly batchesByLine = signal<Record<number, ProductBatchRecord[]>>({});
   readonly formValid = signal(false);
+
+  readonly warehouseOptions = computed(() => this.warehouses().map(formatWarehouseOption));
+  readonly customerOptions = computed(() => this.customers().map(formatCustomerOption));
+  readonly productOptions = computed(() => this.products().map(formatProductOption));
+  readonly accountOptions = computed(() => this.accounts().map(formatAccountOption));
+
+  getLineBatchOptions(index: number): DropdownOption[] {
+    return this.batchesForLine(index).map((b) => ({
+      value: b.id,
+      label: b.batchNumber,
+      meta: b.expiryDate ? `Exp: ${b.expiryDate}` : undefined,
+    }));
+  }
+
   readonly canPost = computed(
     () =>
       this.sessionStore.hasPermission('returns.post') &&
@@ -138,6 +165,17 @@ export class ReturnWithoutInvoicePage {
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.updateFormValidity();
     });
+
+    this.form.controls.customerId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((customerId) => {
+        if (customerId) {
+          const selected = this.customers().find((c) => c.id === customerId);
+          if (selected) {
+            this.knownCustomers.set(customerId, selected);
+          }
+        }
+      });
 
     this.customerSearchChanges
       .pipe(
@@ -250,15 +288,23 @@ export class ReturnWithoutInvoicePage {
     );
   }
 
-  onCustomerSearch(event: Event): void {
-    const target = event.target;
+  onCustomerSearch(eventOrQuery: Event | string): void {
+    if (typeof eventOrQuery === 'string') {
+      this.customerSearchChanges.next(eventOrQuery.trim());
+      return;
+    }
+    const target = eventOrQuery.target;
     if (target instanceof HTMLInputElement) {
       this.customerSearchChanges.next(target.value.trim());
     }
   }
 
-  onProductSearch(event: Event): void {
-    const target = event.target;
+  onProductSearch(eventOrQuery: Event | string): void {
+    if (typeof eventOrQuery === 'string') {
+      this.productSearchChanges.next(eventOrQuery.trim());
+      return;
+    }
+    const target = eventOrQuery.target;
     if (target instanceof HTMLInputElement) {
       this.productSearchChanges.next(target.value.trim());
     }
@@ -293,7 +339,9 @@ export class ReturnWithoutInvoicePage {
 
   productNeedsBatch(index: number): boolean {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    const product = this.products().find((item) => item.id === productId);
+    const product =
+      this.knownProducts.get(productId) ??
+      this.products().find((item) => item.id === productId);
     return Boolean(product && product.trackingMode !== 'none');
   }
 
@@ -301,8 +349,40 @@ export class ReturnWithoutInvoicePage {
     return this.batchesByLine()[index] ?? [];
   }
 
-  onProductChange(index: number): void {
+  productSelectedLabel(index: number): string {
+    const control = this.lines.at(index)?.get('productId');
+    const productId = String(control?.value ?? '').trim();
+    if (!productId) {
+      return '';
+    }
+    const known =
+      this.knownProducts.get(productId) ??
+      this.products().find((p) => p.id === productId);
+    return known?.name ?? '';
+  }
+
+  customerSelectedLabel(): string {
+    const customerId = String(this.form.controls.customerId.value ?? '').trim();
+    if (!customerId) {
+      return '';
+    }
+    const known =
+      this.knownCustomers.get(customerId) ??
+      this.customers().find((c) => c.id === customerId);
+    return known?.name ?? '';
+  }
+
+  onProductChange(index: number, newProductId?: string): void {
+    if (newProductId !== undefined) {
+      this.lineGroup(index).patchValue({ productId: newProductId });
+    }
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
+    if (productId) {
+      const selected = this.products().find((p) => p.id === productId);
+      if (selected) {
+        this.knownProducts.set(productId, selected);
+      }
+    }
     this.lineGroup(index).patchValue({ batchId: '' });
     setRequiredValidator(this.lineGroup(index).get('batchId'), this.productNeedsBatch(index));
     this.updateFormValidity();

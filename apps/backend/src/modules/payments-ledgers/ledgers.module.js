@@ -3,13 +3,8 @@ const {
   createTransactionRunner,
 } = require('../../platform/transactions/transaction-runner');
 const { conflict, validationFailed } = require('../../platform/errors/app-error');
-const {
-  formatMoneyMinorUnits,
-} = require('../../platform/primitives/money-and-time');
-const {
-  createInMemoryLedgersStore,
-  createMongooseLedgersStore,
-} = require('./ledgers.store');
+const { formatMoneyMinorUnits } = require('../../platform/primitives/money-and-time');
+const { createInMemoryLedgersStore, createMongooseLedgersStore } = require('./ledgers.store');
 
 function createMongooseTransactionSessionPort() {
   const mongoose = require('mongoose');
@@ -41,6 +36,21 @@ function toMoneyDto(amountMinorUnits) {
 }
 
 function toLedgerEffectDto(record) {
+  const labels = {
+    customer_loan_disbursement: 'Customer Loan Disbursed',
+    customer_loan_repayment: 'Loan Repayment',
+    customer_loan_repayment_reversal: 'Loan Repayment Reversal',
+    customer_loan_reversal: 'Loan Reversed',
+    customer_trade_receivable_adjustment: 'Trade Receivable Adjustment',
+    customer_advance_adjustment: 'Customer Advance Adjustment',
+    customer_loan_adjustment: 'Loan Balance Adjustment',
+    customer_balance_adjustment_reversal: 'Adjustment Reversal',
+    supplier_advance_refund: 'Supplier Advance Refunded',
+    supplier_advance_refund_reversal: 'Supplier Refund Reversed',
+    supplier_payable_adjustment: 'Supplier Payable Adjustment',
+    supplier_advance_adjustment: 'Supplier Advance Adjustment',
+    supplier_balance_adjustment_reversal: 'Supplier Balance Adjustment Reversed',
+  };
   return {
     id: String(record['_id']),
     organizationId: String(record['organizationId']),
@@ -51,7 +61,10 @@ function toLedgerEffectDto(record) {
     signedAmount: toMoneyDto(record['signedAmountMinorUnits']),
     currency: String(record['currency'] ?? 'PKR'),
     sourceType: String(record['sourceType']),
+    displayLabel: labels[String(record['sourceType'])] ?? null,
     sourceId: String(record['sourceId']),
+    loanId: record['loanId'] ? String(record['loanId']) : null,
+    reversalOfId: record['reversalOfId'] ? String(record['reversalOfId']) : null,
     status: String(record['status']),
     postedAt:
       record['postedAt'] instanceof Date
@@ -65,6 +78,12 @@ function createLedgersService(deps) {
   const store = deps.store;
 
   return {
+    async lockCustomerFinancialPosition(session, organizationId, customerId) {
+      await store.bumpCustomerFinancialVersion(session, organizationId, customerId);
+    },
+    async lockSupplierFinancialPosition(session, organizationId, supplierId) {
+      await store.bumpSupplierFinancialVersion(session, organizationId, supplierId);
+    },
     // Public Payments and Ledgers interface for signed party effects.
     async postLedgerEffect(session, input) {
       const partyType = input.partyType;
@@ -84,6 +103,13 @@ function createLedgersService(deps) {
         ]);
       }
 
+      if (partyType === 'customer') {
+        await store.bumpCustomerFinancialVersion(session, input.organizationId, input.customerId);
+      }
+      if (partyType === 'supplier') {
+        await store.bumpSupplierFinancialVersion(session, input.organizationId, input.supplierId);
+      }
+
       try {
         const created = await store.insertLedgerEffect(session, {
           organizationId: input.organizationId,
@@ -95,6 +121,7 @@ function createLedgersService(deps) {
           currency: input.currency ?? 'PKR',
           sourceType: input.sourceType,
           sourceId: input.sourceId,
+          loanId: input.loanId ?? null,
           reversalOfId: input.reversalOfId ?? null,
           status: 'posted',
           postedAt: input.postedAt,
@@ -117,12 +144,7 @@ function createLedgersService(deps) {
     },
 
     async listEffectsBySource(organizationId, sourceType, sourceId, session) {
-      const items = await store.listEffectsBySource(
-        organizationId,
-        sourceType,
-        sourceId,
-        session,
-      );
+      const items = await store.listEffectsBySource(organizationId, sourceType, sourceId, session);
       return items.map((item) => ({
         id: String(item['_id']),
         partyType: String(item.partyType),
@@ -133,48 +155,77 @@ function createLedgersService(deps) {
         currency: String(item.currency ?? 'PKR'),
         sourceType: String(item.sourceType),
         sourceId: String(item.sourceId),
+        loanId: item.loanId ? String(item.loanId) : null,
         reversalOfId: item.reversalOfId ? String(item.reversalOfId) : null,
       }));
     },
 
-    async sumCustomerReceivable(organizationId, customerId) {
+    async sumCustomerReceivable(organizationId, customerId, session) {
       const minor = await store.sumPostedEffects(organizationId, {
         customerId,
         effectKind: 'receivable',
-      });
+      }, session);
       return toMoneyDto(minor);
     },
 
-    async sumCustomerAdvance(organizationId, customerId) {
+    async sumCustomerAdvance(organizationId, customerId, session) {
       const minor = await store.sumPostedEffects(organizationId, {
         customerId,
         effectKind: 'advance',
-      });
+      }, session);
       return toMoneyDto(minor);
     },
 
-    async sumSupplierPayable(organizationId, supplierId) {
+    async sumCustomerLoanReceivable(organizationId, customerId, session) {
+      const minor = await store.sumPostedEffects(
+        organizationId,
+        { customerId, effectKind: 'loan_receivable' },
+        session,
+      );
+      return toMoneyDto(minor);
+    },
+
+    async listCustomerLoanBalances(organizationId, customerId, session) {
+      return store.listLoanBalances(organizationId, customerId, session);
+    },
+
+    async listCustomerLoanRepaymentTotals(organizationId, customerId, session) {
+      return store.listLoanRepaymentTotals(organizationId, customerId, session);
+    },
+
+    async listCustomerLoanReceivableBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(
+        organizationId,
+        'customer',
+        'loan_receivable',
+      );
+      return {
+        items: rows.map((row) => ({
+          customerId: row.partyId,
+          loanReceivable: toMoneyDto(row.signedAmountMinorUnits),
+          loanReceivableMinorUnits: String(row.signedAmountMinorUnits),
+        })),
+      };
+    },
+
+    async sumSupplierPayable(organizationId, supplierId, session) {
       const minor = await store.sumPostedEffects(organizationId, {
         supplierId,
         effectKind: 'payable',
-      });
+      }, session);
       return toMoneyDto(minor);
     },
 
-    async sumSupplierAdvance(organizationId, supplierId) {
+    async sumSupplierAdvance(organizationId, supplierId, session) {
       const minor = await store.sumPostedEffects(organizationId, {
         supplierId,
         effectKind: 'supplier_advance',
-      });
+      }, session);
       return toMoneyDto(minor);
     },
 
     async mapPartyBalances(organizationId, partyType, effectKind) {
-      const rows = await store.listPartyBalancesByEffectKind(
-        organizationId,
-        partyType,
-        effectKind,
-      );
+      const rows = await store.listPartyBalancesByEffectKind(organizationId, partyType, effectKind);
       const map = new Map();
       for (const row of rows) {
         map.set(String(row.partyId), toMoneyDto(row.signedAmountMinorUnits));
@@ -199,12 +250,21 @@ function createLedgersService(deps) {
       };
     },
 
+    async listCustomerAdvanceBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(organizationId, 'customer', 'advance');
+      return {
+        items: rows
+          .map((row) => ({
+            customerId: row.partyId,
+            advance: toMoneyDto(row.signedAmountMinorUnits),
+            advanceMinorUnits: String(row.signedAmountMinorUnits),
+          }))
+          .filter((row) => BigInt(row.advanceMinorUnits) > 0n),
+      };
+    },
+
     async listSupplierPayableBalances(organizationId) {
-      const rows = await store.listPartyBalancesByEffectKind(
-        organizationId,
-        'supplier',
-        'payable',
-      );
+      const rows = await store.listPartyBalancesByEffectKind(organizationId, 'supplier', 'payable');
       return {
         items: rows
           .map((row) => ({
@@ -213,6 +273,23 @@ function createLedgersService(deps) {
             payableMinorUnits: String(row.signedAmountMinorUnits),
           }))
           .filter((row) => BigInt(row.payableMinorUnits) > 0n),
+      };
+    },
+
+    async listSupplierAdvanceBalances(organizationId) {
+      const rows = await store.listPartyBalancesByEffectKind(
+        organizationId,
+        'supplier',
+        'supplier_advance',
+      );
+      return {
+        items: rows
+          .map((row) => ({
+            supplierId: row.partyId,
+            advance: toMoneyDto(row.signedAmountMinorUnits),
+            advanceMinorUnits: String(row.signedAmountMinorUnits),
+          }))
+          .filter((row) => BigInt(row.advanceMinorUnits) > 0n),
       };
     },
 
@@ -243,10 +320,7 @@ function createLedgersModule(options = {}) {
   const transactionRunner = options.transactionRunner ?? createTransactionRunner(sessionPort);
   const ledgersService = createLedgersService({ store, transactionRunner });
 
-  const {
-    createInMemoryPaymentsStore,
-    createMongoosePaymentsStore,
-  } = require('./payments.store');
+  const { createInMemoryPaymentsStore, createMongoosePaymentsStore } = require('./payments.store');
   const { createPaymentsService } = require('./payments.service');
 
   const paymentsStore =

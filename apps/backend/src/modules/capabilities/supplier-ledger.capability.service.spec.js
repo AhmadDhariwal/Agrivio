@@ -26,6 +26,7 @@ const SUPPLIER_LEDGER_KEYS = [
   'payments.supplierLedger.fields.supplierIdentity',
   'payments.supplierLedger.fields.outstandingPayable',
   'payments.supplierLedger.fields.supplierAdvance',
+  'payments.supplierLedger.fields.netPayable',
   'payments.supplierLedger.fields.reconciliationStatus',
   'payments.supplierLedger.fields.allocationTotal',
   'payments.supplierLedger.fields.date',
@@ -52,16 +53,16 @@ function control(result, key) {
 }
 
 describe('Supplier Ledger capability registry and service', () => {
-  it('registers the exact authoritative 17-control read-only model', () => {
+  it('registers the exact authoritative 18-control read-only model', () => {
     const definitions = listCapabilityControls().filter(
       (item) => item.moduleKey === 'payments.supplierLedger',
     );
     expect(definitions.map((item) => item.key)).toEqual(SUPPLIER_LEDGER_KEYS);
     expect(definitions.filter((item) => item.type === 'MODULE')).toHaveLength(1);
     expect(definitions.filter((item) => item.type === 'FEATURE')).toHaveLength(4);
-    expect(definitions.filter((item) => item.type === 'FIELD')).toHaveLength(11);
+    expect(definitions.filter((item) => item.type === 'FIELD')).toHaveLength(12);
     expect(definitions.filter((item) => item.type === 'ACTION')).toHaveLength(1);
-    expect(definitions.filter((item) => item.platformEnforced)).toHaveLength(12);
+    expect(definitions.filter((item) => item.platformEnforced)).toHaveLength(13);
     expect(definitions.some((item) => item.configurable.editable !== undefined)).toBe(false);
     expect(
       definitions.find(

@@ -160,8 +160,8 @@ function createMongooseCatalogStore() {
       }));
     },
 
-    async countProducts(organizationId) {
-      return ProductModel.countDocuments({ organizationId }).exec();
+    async countProducts(organizationId, session = null) {
+      return ProductModel.countDocuments({ organizationId }, withSession(session)).exec();
     },
 
     async countPackagingUnits(organizationId) {

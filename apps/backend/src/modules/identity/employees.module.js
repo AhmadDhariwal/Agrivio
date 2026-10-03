@@ -16,7 +16,11 @@ const {
 const {
   assertOwnerPresenceAfterMembershipChange,
 } = require('./owner-presence');
-const { parseEmployeeCreate, parseEmployeePatch } = require('./employees.validation');
+const {
+  parseEmployeeCreate,
+  parseEmployeePatch,
+  parseExpectedVersion,
+} = require('./employees.validation');
 const {
   createInMemoryEmployeesStore,
   createMongooseEmployeesStore,
@@ -70,6 +74,10 @@ function resolveAllowedActions(actor, membership) {
   return {
     canUpdate: canManage && hasPermission(permissions, 'users.update'),
     canDeactivate: canManage && hasPermission(permissions, 'users.deactivate'),
+    canCancelInvitation:
+      membership['status'] === 'pending' &&
+      canManage &&
+      hasPermission(permissions, 'users.deactivate'),
     canAssignAccess:
       canManage &&
       targetRole !== 'Owner' &&
@@ -116,12 +124,16 @@ function createEmployeesService(deps) {
   });
   const transactionRunner = deps.transactionRunner;
 
-  async function loadEmployee(organizationId, userId) {
-    const membership = await store.findMembershipByOrganizationAndUserId(organizationId, userId);
+  async function loadEmployee(organizationId, userId, session) {
+    const membership = await store.findMembershipByOrganizationAndUserId(
+      organizationId,
+      userId,
+      session,
+    );
     if (membership === null) {
       return null;
     }
-    const user = await store.findUserById(String(membership['userId']));
+    const user = await store.findUserById(String(membership['userId']), session);
     if (user === null) {
       return null;
     }
@@ -520,6 +532,68 @@ function createEmployeesService(deps) {
         });
 
         return toEmployeeDto(updatedMembership, user, [], actor);
+      });
+    },
+
+    async cancelPendingInvitation(organizationId, userId, body, actor) {
+      if (typeof deps.capabilityService?.assertEmployeeDeactivateAllowed === 'function') {
+        await deps.capabilityService.assertEmployeeDeactivateAllowed(organizationId);
+      }
+      const expectedVersion = parseExpectedVersion(body);
+      return transactionRunner.run(async (session) => {
+        const loaded = await loadEmployee(organizationId, userId, session);
+        if (loaded === null) throw notFound('Organization user not found');
+        const { membership, user } = loaded;
+        assertCanManageMembership(actor.role, String(membership['role']));
+        if (
+          membership['status'] !== 'pending' ||
+          user['status'] !== 'pending_activation' ||
+          (typeof user['passwordHash'] === 'string' && user['passwordHash'].length > 0)
+        ) {
+          throw conflict('Only never-activated pending invitations can be cancelled');
+        }
+        if (Number(membership['version']) !== expectedVersion) {
+          throw conflict('Invitation was modified by another request');
+        }
+        if (
+          await store.hasConsumedEmployeeActivationToken(
+            session,
+            String(user['_id']),
+            organizationId,
+          )
+        ) {
+          throw conflict('Invitation activation has already been used');
+        }
+
+        await store.deleteOpenActivationTokens(
+          session,
+          String(user['_id']),
+          organizationId,
+        );
+        if (typeof store.revokeAccessAssignmentsForMembership === 'function') {
+          await store.revokeAccessAssignmentsForMembership(
+            session,
+            String(membership['_id']),
+            now(),
+          );
+        }
+        const deleted = await store.deletePendingMembership(
+          session,
+          organizationId,
+          String(membership['_id']),
+          expectedVersion,
+        );
+        if (!deleted) throw conflict('Invitation was modified or is no longer pending');
+
+        await auditWriter.appendBusinessEvent(session, {
+          organizationId,
+          actorId: actor.actorId,
+          action: 'user.invitation.cancelled',
+          resourceType: 'organization_membership',
+          resourceId: String(membership['_id']),
+          metadata: { userId: String(user['_id']), email: String(user['emailNormalized']) },
+        });
+        return { id: String(user['_id']), invitationCancelled: true };
       });
     },
 

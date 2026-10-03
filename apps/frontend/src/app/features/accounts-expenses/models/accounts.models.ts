@@ -22,8 +22,14 @@ export interface AccountMovementRecord {
   signedAmount: MoneyAmount;
   sourceType: string;
   sourceId: string;
+  direction?: 'inflow' | 'outflow';
   purpose?: string | null;
+  category?: string | null;
   reference?: string | null;
+  notes?: string | null;
+  businessDate?: string | null;
+  balanceBefore?: MoneyAmount | null;
+  desiredBalance?: MoneyAmount | null;
   reversalOfId?: string | null;
   status: string;
   postedAt: string;
@@ -38,7 +44,10 @@ export interface AccountTransactionRecord {
   amount: MoneyAmount;
   signedAmount: MoneyAmount;
   purpose: string | null;
+  category?: string | null;
   reference: string | null;
+  notes?: string | null;
+  businessDate?: string | null;
   sourceType: string;
   sourceId: string;
   reversalOfId: string | null;
@@ -55,6 +64,8 @@ export interface AccountTransferRecord {
   amount: MoneyAmount;
   purpose: string | null;
   reference: string | null;
+  notes?: string | null;
+  businessDate?: string | null;
   outboundMovementId: string;
   inboundMovementId: string;
   reversalOutboundMovementId: string | null;
@@ -63,6 +74,24 @@ export interface AccountTransferRecord {
   postedAt: string;
   postedBy: string;
   reason?: string | null;
+}
+
+export interface BalanceAdjustmentRecord {
+  id: string | null;
+  accountId: string;
+  expectedCurrentBalance: MoneyAmount;
+  balanceBefore: MoneyAmount;
+  desiredBalance: MoneyAmount;
+  delta: MoneyAmount;
+  sourceType: string | null;
+  category: string;
+  reason: string;
+  reference?: string | null;
+  notes?: string | null;
+  businessDate?: string | null;
+  status: string;
+  postedAt: string;
+  postedBy: string;
 }
 
 export interface AccountRecord {
@@ -84,4 +113,5 @@ export interface AccountsSummary {
   activeAccounts: number;
   inactiveAccounts: number;
   totalBalance: MoneyAmount;
+  totalLiquidFunds?: MoneyAmount;
 }

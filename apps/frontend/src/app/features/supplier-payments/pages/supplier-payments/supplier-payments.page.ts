@@ -6,15 +6,27 @@ import {
   SupplierPaymentsApi,
   SupplierPaymentsListQuery,
 } from '../../data-access/supplier-payments.api';
-import { SupplierPaymentRecord } from '../../models/supplier-payments.models';
+import { SupplierPaymentRecord, UnpaidPurchaseRecord } from '../../models/supplier-payments.models';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiLoadingStateComponent } from '../../../../shared/ui/ui-loading-state/ui-loading-state.component';
 import { UiPaginationComponent } from '../../../../shared/ui/ui-pagination/ui-pagination.component';
 import { UiModuleInfoComponent } from '../../../../shared/ui/ui-module-info/ui-module-info.component';
+import { AppDatePipe } from '../../../../shared/format/date-time.pipe';
 import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import { AccountsApi } from '../../../accounts-expenses/data-access/accounts.api';
+import { DropdownOption } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatAccountOption } from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import {
+  PaymentCorrectionDialogComponent,
+  PaymentCorrectionDialogResult,
+  PaymentCorrectionAllocationTarget,
+  PaymentCorrectionTarget,
+} from '../../../../shared/ui/payment-correction-dialog/payment-correction-dialog.component';
+import { PaymentDetailDialogComponent } from '../../../../shared/ui/payment-detail-dialog/payment-detail-dialog.component';
+import { SupplierPaymentCorrectionInput } from '../../models/supplier-payments.models';
 
 @Component({
   selector: 'agrivio-supplier-payments-page',
@@ -26,6 +38,9 @@ import { CapabilityService } from '../../../capabilities/data-access/capability.
     UiLoadingStateComponent,
     UiPaginationComponent,
     UiModuleInfoComponent,
+    AppDatePipe,
+    PaymentCorrectionDialogComponent,
+    PaymentDetailDialogComponent,
   ],
   templateUrl: './supplier-payments.page.html',
   styleUrl: './supplier-payments.page.scss',
@@ -35,9 +50,12 @@ export class SupplierPaymentsPage {
   private readonly sessionStore = inject(AuthSessionStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly capabilityService = inject(CapabilityService, { optional: true });
+  private readonly accountsApi = inject(AccountsApi, { optional: true });
   private readonly reloadRequests = new Subject<boolean>();
 
   readonly items = signal<SupplierPaymentRecord[]>([]);
+  readonly correctionAccountOptions = signal<DropdownOption[]>([]);
+  readonly correctionAllocationTargets = signal<PaymentCorrectionAllocationTarget[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly filterError = signal<string | null>(null);
@@ -53,6 +71,12 @@ export class SupplierPaymentsPage {
       this.sessionStore.hasPermission('supplier-payments.post') &&
       this.canUseSupplierPayments() &&
       (this.capabilityService?.canPerformAction('payments.supplier.actions.post') ?? true),
+  );
+  readonly canCorrect = computed(
+    () =>
+      this.sessionStore.hasPermission('payments.correct') &&
+      this.canUseSupplierPayments() &&
+      (this.capabilityService?.canPerformAction('payments.supplier.actions.correct') ?? true),
   );
   readonly canViewLedger = computed(
     () =>
@@ -74,6 +98,13 @@ export class SupplierPaymentsPage {
   readonly page = signal(1);
   readonly pageSize = signal(25);
   readonly total = signal(0);
+  readonly search = signal('');
+  readonly pendingSearch = signal('');
+  readonly showSearch = computed(
+    () =>
+      (this.capabilityService?.canUseFeature('payments.supplier.features.search') ?? true) &&
+      (this.capabilityService?.canUseFeature('payments.supplier.features.paymentDateFilter') ?? true),
+  );
   readonly dateMode = signal<'single' | 'range'>('single');
   readonly paymentDate = signal('');
   readonly fromDate = signal('');
@@ -82,16 +113,18 @@ export class SupplierPaymentsPage {
   readonly pendingPaymentDate = signal('');
   readonly pendingFromDate = signal('');
   readonly pendingToDate = signal('');
-  readonly hasActiveFilters = computed(() =>
-    this.dateMode() === 'single'
+  readonly hasActiveFilters = computed(() => {
+    if (this.search().trim() !== '') return true;
+    return this.dateMode() === 'single'
       ? this.paymentDate() !== ''
-      : this.fromDate() !== '' || this.toDate() !== '',
-  );
-  readonly hasPendingFilters = computed(() =>
-    this.pendingDateMode() === 'single'
+      : this.fromDate() !== '' || this.toDate() !== '';
+  });
+  readonly hasPendingFilters = computed(() => {
+    if (this.pendingSearch().trim() !== '') return true;
+    return this.pendingDateMode() === 'single'
       ? this.pendingPaymentDate() !== ''
-      : this.pendingFromDate() !== '' || this.pendingToDate() !== '',
-  );
+      : this.pendingFromDate() !== '' || this.pendingToDate() !== '';
+  });
   readonly invalidPendingDateRange = computed(
     () =>
       this.pendingDateMode() === 'range' &&
@@ -107,6 +140,13 @@ export class SupplierPaymentsPage {
   ];
 
   constructor() {
+    this.accountsApi?.listAccountOptions().subscribe({
+      next: (accounts) =>
+        this.correctionAccountOptions.set(
+          accounts.filter((account) => account.status === 'active').map(formatAccountOption),
+        ),
+      error: () => this.correctionAccountOptions.set([]),
+    });
     this.reloadRequests
       .pipe(
         startWith(false),
@@ -123,6 +163,7 @@ export class SupplierPaymentsPage {
             pageSize: this.pageSize(),
             forceRefresh: forceRefresh === true,
           };
+          if (this.search().trim()) params.search = this.search().trim();
           if (this.dateMode() === 'single') {
             if (this.paymentDate()) params.paymentDate = this.paymentDate();
           } else {
@@ -154,6 +195,20 @@ export class SupplierPaymentsPage {
     this.reloadRequests.next(forceRefresh);
   }
 
+  onSearchInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.pendingSearch.set(value);
+  }
+
+  onSearchClear(): void {
+    this.pendingSearch.set('');
+    if (this.search()) {
+      this.search.set('');
+      this.page.set(1);
+      this.reload();
+    }
+  }
+
   setDateMode(mode: 'single' | 'range'): void {
     this.pendingDateMode.set(mode);
     this.filterError.set(null);
@@ -180,6 +235,7 @@ export class SupplierPaymentsPage {
       return;
     }
     this.filterError.set(null);
+    this.search.set(this.pendingSearch().trim());
     this.dateMode.set(this.pendingDateMode());
     this.paymentDate.set(this.pendingPaymentDate().trim());
     this.fromDate.set(this.pendingFromDate().trim());
@@ -190,9 +246,11 @@ export class SupplierPaymentsPage {
 
   clearFilters(): void {
     this.filterError.set(null);
+    this.pendingSearch.set('');
     this.pendingPaymentDate.set('');
     this.pendingFromDate.set('');
     this.pendingToDate.set('');
+    this.search.set('');
     this.paymentDate.set('');
     this.fromDate.set('');
     this.toDate.set('');
@@ -223,5 +281,188 @@ export class SupplierPaymentsPage {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+  }
+
+  formatMode(mode?: string | null): string {
+    if (!mode) return 'General';
+    if (mode === 'invoice_specific') return 'Invoice-specific';
+    if (mode === 'general') return 'General';
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
+  }
+
+  // Dialog State
+  readonly detailDialogOpen = signal(false);
+  readonly detailTarget = signal<PaymentCorrectionTarget | null>(null);
+
+  readonly correctionDialogOpen = signal(false);
+  readonly correctionTarget = signal<PaymentCorrectionTarget | null>(null);
+  readonly correctionInitialMode = signal<'reverse' | 'correct'>('reverse');
+  readonly correctionSubmitting = signal(false);
+  readonly correctionError = signal<string | null>(null);
+
+  toCorrectionTarget(item: SupplierPaymentRecord): PaymentCorrectionTarget {
+    return {
+      id: item.id,
+      partyType: 'supplier',
+      partyName: item.supplierId ? `Supplier ${item.supplierId}` : null,
+      amount: item.amount,
+      accountId: item.accountId,
+      paymentDate: item.paymentDate,
+      allocationMode: item.allocationMode,
+      appliedTo: null,
+      notes: item.notes,
+      reference: null,
+      correctionOfId: item.correctionOfId ?? null,
+      reason: item.reason ?? null,
+      replacementPaymentId: item.replacementPaymentId ?? null,
+      reversalPaymentId: item.reversalPaymentId ?? null,
+      correctionStatus: item.correctionStatus ?? null,
+      allocations: item.allocations,
+    };
+  }
+
+  isCorrectable(item: SupplierPaymentRecord): boolean {
+    return item.status === 'posted' && !item.correctionOfId && !item.correctionStatus && !item.replacementPaymentId;
+  }
+
+  openDetailDialog(item: SupplierPaymentRecord): void {
+    this.detailTarget.set(this.toCorrectionTarget(item));
+    this.detailDialogOpen.set(true);
+  }
+
+  closeDetailDialog(): void {
+    this.detailDialogOpen.set(false);
+  }
+
+  openCorrectionDialog(item: SupplierPaymentRecord, mode: 'reverse' | 'correct'): void {
+    this.correctionTarget.set(this.toCorrectionTarget(item));
+    this.correctionInitialMode.set(mode);
+    this.correctionError.set(null);
+    this.loadCorrectionTargets(item);
+    this.correctionDialogOpen.set(true);
+  }
+
+  closeCorrectionDialog(): void {
+    if (this.correctionSubmitting()) return;
+    this.correctionDialogOpen.set(false);
+    this.correctionError.set(null);
+  }
+
+  onDetailReverse(target: PaymentCorrectionTarget): void {
+    this.detailDialogOpen.set(false);
+    const item = this.items().find((i) => i.id === target.id);
+    if (item) {
+      this.openCorrectionDialog(item, 'reverse');
+    } else {
+      this.correctionTarget.set(target);
+      this.correctionInitialMode.set('reverse');
+      this.correctionError.set(null);
+      this.correctionDialogOpen.set(true);
+    }
+  }
+
+  onDetailCorrect(target: PaymentCorrectionTarget): void {
+    this.detailDialogOpen.set(false);
+    const item = this.items().find((i) => i.id === target.id);
+    if (item) {
+      this.openCorrectionDialog(item, 'correct');
+    } else {
+      this.correctionTarget.set(target);
+      this.correctionInitialMode.set('correct');
+      this.correctionError.set(null);
+      this.correctionDialogOpen.set(true);
+    }
+  }
+
+  onCorrectionConfirmed(event: PaymentCorrectionDialogResult): void {
+    this.correctionSubmitting.set(true);
+    this.correctionError.set(null);
+
+    const payload: SupplierPaymentCorrectionInput = {
+      reason: event.reason,
+      replacement: event.replacement
+        ? {
+            accountId: event.replacement.accountId,
+            amount: event.replacement.amount,
+            paymentDate: event.replacement.paymentDate,
+            allocationMode: event.replacement.allocationMode,
+            ...(event.replacement.allocations
+              ? {
+                  allocations: event.replacement.allocations.map((allocation) => ({
+                    purchaseId: allocation.targetId,
+                    amount: allocation.amount,
+                  })),
+                }
+              : {}),
+            notes: event.replacement.notes,
+          }
+        : null,
+    };
+
+    this.api
+      .correctPayment(event.paymentId, payload, event.idempotencyKey)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.correctionSubmitting.set(false);
+          this.correctionDialogOpen.set(false);
+          this.reload(true);
+        },
+        error: (err: unknown) => {
+          this.correctionSubmitting.set(false);
+          this.correctionError.set(
+            err instanceof HttpErrorResponse
+              ? (err.error?.error?.message ?? err.error?.message ?? 'Failed to execute payment correction.')
+              : 'Failed to execute payment correction.',
+          );
+        },
+      });
+  }
+
+  private loadCorrectionTargets(payment: SupplierPaymentRecord): void {
+    if (!payment.supplierId) {
+      this.correctionAllocationTargets.set([]);
+      return;
+    }
+    if (typeof this.api.listUnpaidPurchases !== 'function') {
+      this.correctionAllocationTargets.set(this.mergeSupplierTargets([], payment));
+      return;
+    }
+    this.api.listUnpaidPurchases(payment.supplierId, { forceRefresh: true }).subscribe({
+      next: (targets) => this.correctionAllocationTargets.set(this.mergeSupplierTargets(targets, payment)),
+      error: () => this.correctionAllocationTargets.set(this.mergeSupplierTargets([], payment)),
+    });
+  }
+
+  private mergeSupplierTargets(
+    targets: UnpaidPurchaseRecord[],
+    payment: SupplierPaymentRecord,
+  ): PaymentCorrectionAllocationTarget[] {
+    const result = new Map<string, PaymentCorrectionAllocationTarget>();
+    for (const target of targets) {
+      result.set(target.id, {
+        id: target.id,
+        label: target.reference || target.sequence || target.id,
+        outstandingAmount: target.outstanding.amount,
+      });
+    }
+    for (const allocation of payment.allocations ?? []) {
+      if (!['purchase', 'supplier_opening_payable', 'supplier_manual_payable'].includes(allocation.targetType)) continue;
+      const id = allocation.targetType === 'supplier_opening_payable'
+        ? `opening:${allocation.targetId}`
+        : allocation.targetId;
+      const existing = result.get(id);
+      const restored = this.moneyMinor(existing?.outstandingAmount ?? '0') + this.moneyMinor(allocation.allocatedAmount.amount);
+      result.set(id, {
+        id,
+        label: existing?.label ?? (allocation.targetType === 'supplier_opening_payable' ? 'Opening payable' : allocation.targetId),
+        outstandingAmount: (restored / 100).toFixed(2),
+      });
+    }
+    return [...result.values()];
+  }
+
+  private moneyMinor(value: string): number {
+    return Math.round((Number(value) || 0) * 100);
   }
 }

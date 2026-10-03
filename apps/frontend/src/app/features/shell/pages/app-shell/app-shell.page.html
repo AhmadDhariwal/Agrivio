@@ -485,7 +485,12 @@
       </header>
 
       <div class="ag-shell__content">
-        <agrivio-subscription-status-banner [accessState]="subscriptionAccessState()" />
+        @if (!isPlatformContext()) {
+          <agrivio-subscription-status-banner
+            [accessState]="subscriptionAccessState()"
+            [showManageBilling]="canSubmitBilling()"
+          />
+        }
 
         @if (missingAssignmentMessage(); as assignmentMessage) {
           <agrivio-ui-alert [message]="assignmentMessage" tone="warning" role="status" />

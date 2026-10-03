@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -45,6 +46,8 @@ export class BranchFormPage {
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly formSubmitAttempted = signal(false);
+  readonly existingDefaultId = signal<string | null>(null);
+  readonly existingDefaultName = signal<string | null>(null);
 
   readonly isBranchesEnabled = computed(
     () => this.capabilityService?.canUseModule('branches') ?? true,
@@ -83,9 +86,20 @@ export class BranchFormPage {
     ],
     code: ['', [Validators.maxLength(MAX_CODE)]],
     status: ['active'],
+    isDefault: [false],
   });
 
   constructor() {
+    this.api.listBranchOptions().subscribe({
+      next: (branches) => {
+        const existing = branches.find((b) => b.isDefault === true);
+        if (existing) {
+          this.existingDefaultId.set(existing.id);
+          this.existingDefaultName.set(existing.name);
+        }
+      },
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.branchId.set(id);
@@ -98,6 +112,7 @@ export class BranchFormPage {
             invoicePrefix: branch.invoicePrefix,
             code: branch.code,
             status: branch.status,
+            isDefault: branch.isDefault ?? false,
           });
           this.loading.set(false);
         },
@@ -108,6 +123,17 @@ export class BranchFormPage {
       });
     }
   }
+
+  readonly isDefaultValue = toSignal(this.form.controls.isDefault.valueChanges, {
+    initialValue: this.form.controls.isDefault.value,
+  });
+
+  readonly showDefaultReassignmentWarning = computed(() => {
+    const existingId = this.existingDefaultId();
+    if (!existingId) return false;
+    if (existingId === this.branchId()) return false;
+    return this.isDefaultValue() === true;
+  });
 
   get previewPrefix(): string {
     const raw = this.form.controls.invoicePrefix.value.trim();
@@ -139,6 +165,7 @@ export class BranchFormPage {
             name: value.name.trim(),
             invoicePrefix: normalizedPrefix,
             ...(value.code.trim() === '' ? {} : { code: value.code.trim() }),
+            isDefault: value.isDefault,
           })
         : this.api.updateBranch(currentBranchId, {
             expectedVersion: this.version,
@@ -146,6 +173,7 @@ export class BranchFormPage {
             invoicePrefix: normalizedPrefix,
             code: value.code.trim(),
             status: value.status,
+            isDefault: value.isDefault,
           });
 
     request$.subscribe({

@@ -5,6 +5,8 @@ const { createImportsModule } = require('./imports.module');
 const { renderImportWorkbook } = require('./import-workbook');
 const { ImportJobModel, ImportRowErrorModel } = require('./persistence/import-job.model');
 const { ProductCategoryModel } = require('../catalog/persistence/product-category.model');
+const { ProductModel } = require('../catalog/persistence/product.model');
+const { evaluateNumericLimit } = require('../subscriptions/entitlement');
 
 const actor = { actorId: 'owner-1', authContext: { userId: 'owner-1', organizationId: null } };
 
@@ -143,5 +145,98 @@ describe('F08 P3 import Mongo transactions', () => {
     }).exec();
     expect(count).toBe(1);
     expect(results.some((item) => item.status === 'fulfilled')).toBe(true);
+  });
+
+  it('preflights product quota in the Mongo transaction and leaves no partial over-limit rows', async ({
+    skip,
+  }) => {
+    if (!mongoReady) {
+      skip('Mongo replica set rs0 PRIMARY is required for real-Mongo transaction proof');
+    }
+
+    const evaluateEntitlement = async (_organizationId, { limitKey, currentUsage }) =>
+      evaluateNumericLimit({ limits: { products: 2 } }, limitKey, currentUsage);
+    const catalog = createCatalogModule({ persistence: 'mongoose', evaluateEntitlement });
+    const imports = createImportsModule({
+      persistence: 'mongoose',
+      catalogService: catalog.catalogService,
+      resolvePlanEntitlements: async () => ({ imports: true }),
+      evaluateEntitlement,
+    });
+    const category = await catalog.catalogService.createCategory(
+      organizationId,
+      { name: 'Quota General', productClass: 'general' },
+      actor,
+    );
+    await catalog.catalogService.createProduct(
+      organizationId,
+      {
+        sku: 'QUOTA-EXISTING',
+        name: 'Quota Existing',
+        categoryId: category.id,
+        trackingMode: 'none',
+        baseUnitCode: 'KG',
+        measurementDimension: 'mass',
+      },
+      actor,
+    );
+    const row = (sku) => ({
+      sku,
+      name: sku,
+      categoryName: 'Quota General',
+      trackingMode: 'none',
+      baseUnitCode: 'KG',
+      measurementDimension: 'mass',
+    });
+    const job = await imports.importsService.createJob(
+      organizationId,
+      { importType: 'products' },
+      actor,
+    );
+    await imports.importsService.uploadWorkbook(
+      organizationId,
+      job.id,
+      { buffer: renderImportWorkbook('products', [row('QUOTA-2'), row('QUOTA-3')]) },
+      actor,
+    );
+    await imports.importsService.validateJob(organizationId, job.id, actor.authContext);
+    await imports.importsService.confirmJob(organizationId, job.id, actor);
+
+    await expect(
+      imports.importsService.executeJob(organizationId, job.id, actor, 'mongo-product-quota'),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(ProductModel.countDocuments({ organizationId }).exec()).resolves.toBe(1);
+  });
+
+  it('uses a database constraint to serialize distinct same-resource import jobs', async ({
+    skip,
+  }) => {
+    if (!mongoReady) {
+      skip('Mongo replica set rs0 PRIMARY is required for real-Mongo concurrency proof');
+    }
+
+    const isolatedOrganizationId = String(new mongoose.Types.ObjectId());
+    const imports = createImportsModule({ persistence: 'mongoose' });
+    const first = await imports.store.insertJob(null, {
+      organizationId: isolatedOrganizationId,
+      importType: 'products',
+      templateVersion: 1,
+      status: 'confirmed',
+      version: 1,
+    });
+    const second = await imports.store.insertJob(null, {
+      organizationId: isolatedOrganizationId,
+      importType: 'products',
+      templateVersion: 1,
+      status: 'confirmed',
+      version: 1,
+    });
+
+    await expect(
+      imports.store.claimExecute(isolatedOrganizationId, String(first._id)),
+    ).resolves.toMatchObject({ status: 'executing' });
+    await expect(
+      imports.store.claimExecute(isolatedOrganizationId, String(second._id)),
+    ).rejects.toMatchObject({ agrivioConcurrentImport: true });
   });
 });

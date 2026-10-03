@@ -34,8 +34,8 @@ function createMongooseSuppliersStore() {
       return { items, total };
     },
 
-    async countSuppliers(organizationId) {
-      return SupplierModel.countDocuments({ organizationId }).exec();
+    async countSuppliers(organizationId, session = null) {
+      return SupplierModel.countDocuments({ organizationId }, withSession(session)).exec();
     },
 
     async countSuppliersWithOpening(organizationId) {

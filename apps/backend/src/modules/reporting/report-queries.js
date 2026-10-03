@@ -656,9 +656,11 @@ function createReportQueries(deps) {
 
   async function queryCustomerLedger(organizationId, filters) {
     const ledger = await paymentsService.listCustomerLedger(organizationId, filters.customerId);
-    const items = (ledger.items ?? []).filter((item) =>
-      inDateRange(item.postedAt, filters.fromDate, filters.toDate),
-    );
+    // Reverse to chronological order (oldest first) so the running balance
+    // accumulates correctly and the report reads top-to-bottom in time order.
+    const items = (ledger.items ?? [])
+      .filter((item) => inDateRange(item.postedAt, filters.fromDate, filters.toDate))
+      .reverse();
     let running = 0n;
     const rows = items.map((item) => {
       running += moneyAmountToMinor(item.signedAmount);
@@ -689,9 +691,11 @@ function createReportQueries(deps) {
 
   async function querySupplierLedger(organizationId, filters) {
     const ledger = await paymentsService.listSupplierLedger(organizationId, filters.supplierId);
-    const items = (ledger.items ?? []).filter((item) =>
-      inDateRange(item.postedAt, filters.fromDate, filters.toDate),
-    );
+    // Reverse to chronological order (oldest first) so the running balance
+    // accumulates correctly and the report reads top-to-bottom in time order.
+    const items = (ledger.items ?? [])
+      .filter((item) => inDateRange(item.postedAt, filters.fromDate, filters.toDate))
+      .reverse();
     let running = 0n;
     const rows = items.map((item) => {
       running += moneyAmountToMinor(item.signedAmount);

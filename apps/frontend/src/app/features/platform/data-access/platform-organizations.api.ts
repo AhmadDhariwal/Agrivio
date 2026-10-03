@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, forkJoin, map, switchMap, tap } from 'rxjs';
+import { Observable, map, switchMap, tap } from 'rxjs';
 import {
   API_CSRF_HEADER,
   API_IDEMPOTENCY_KEY_HEADER,
@@ -11,6 +11,7 @@ import { environment } from '../../../../environments/environment';
 import { AuthApi } from '../../auth/data-access/auth.api';
 import { PaginatedResult } from '../../../shared/data-access/pagination';
 import { QueryCacheService } from '../../../shared/data-access/query-cache.service';
+import { QUERY_CACHE_TAGS } from '../../../shared/data-access/query-cache.tags';
 import {
   PlatformAuditEvent,
   PlatformChangePlanPayload,
@@ -37,7 +38,9 @@ export class PlatformOrganizationsApi {
   list(
     params: PlatformOrganizationQuery = {},
     forceRefresh = false,
-  ): Observable<PaginatedResult<PlatformOrganizationSummary>> {
+  ): Observable<
+    PaginatedResult<PlatformOrganizationSummary> & { summary?: PlatformOrganizationKpis }
+  > {
     const page = params.page ?? 1;
     const pageSize = params.pageSize ?? 25;
     const queryKeyParams: Record<string, unknown> = { page, pageSize };
@@ -53,6 +56,7 @@ export class PlatformOrganizationsApi {
     return this.queryCache.fetch({
       key: this.queryCache.buildKey('platform:organizations', queryKeyParams),
       policy: 'short',
+      tags: [QUERY_CACHE_TAGS.platformOrganizations],
       forceRefresh,
       loader: () => {
         let httpParams = new HttpParams()
@@ -73,7 +77,9 @@ export class PlatformOrganizationsApi {
         return this.http
           .get<{
             data: Array<Record<string, unknown>>;
-            meta: PaginatedResult<PlatformOrganizationSummary>['meta'];
+            meta: PaginatedResult<PlatformOrganizationSummary>['meta'] & {
+              summary?: PlatformOrganizationKpis;
+            };
           }>(`${environment.publicApiBaseUrl}${API_PLATFORM_ORGANIZATIONS_PATH}`, {
             withCredentials: true,
             params: httpParams,
@@ -82,31 +88,10 @@ export class PlatformOrganizationsApi {
             map((response) => ({
               items: response.data.map(mapOrganizationSummary),
               meta: response.meta,
+              ...(response.meta.summary ? { summary: response.meta.summary } : {}),
             })),
           );
       },
-    });
-  }
-
-  getSummaryKpis(forceRefresh = false): Observable<PlatformOrganizationKpis> {
-    return this.queryCache.fetch({
-      key: this.queryCache.buildKey('platform:organizations:kpis'),
-      policy: 'short',
-      forceRefresh,
-      loader: () =>
-        forkJoin({
-          totalRes: this.list({ page: 1, pageSize: 1 }, true),
-          activeRes: this.list({ page: 1, pageSize: 1, status: 'approved' }, true),
-          suspendedRes: this.list({ page: 1, pageSize: 1, status: 'suspended' }, true),
-          trialRes: this.list({ page: 1, pageSize: 1, subscriptionStatus: 'trial' }, true),
-        }).pipe(
-          map(({ totalRes, activeRes, suspendedRes, trialRes }) => ({
-            total: totalRes.meta.total,
-            active: activeRes.meta.total,
-            suspended: suspendedRes.meta.total,
-            trial: trialRes.meta.total,
-          })),
-        ),
     });
   }
 
@@ -354,7 +339,7 @@ export class PlatformOrganizationsApi {
   }
 
   private invalidatePlatformOrgList(): void {
-    this.queryCache.invalidateKey(this.queryCache.buildKey('platform:organizations:kpis'));
+    this.queryCache.invalidateTags(QUERY_CACHE_TAGS.platformOrganizations);
   }
 }
 

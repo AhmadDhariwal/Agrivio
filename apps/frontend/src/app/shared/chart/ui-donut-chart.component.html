@@ -1,0 +1,25 @@
+@if (slices().length === 0 || total() <= 0) {
+  <div class="ag-donut__empty">
+    <p class="ag-muted">{{ emptyLabel() }}</p>
+  </div>
+} @else {
+  <div class="ag-donut" [attr.aria-label]="title()">
+    <div class="ag-donut__chart-wrap">
+      <canvas #donutCanvas></canvas>
+    </div>
+    <div class="ag-donut__legend">
+      @for (slice of formattedSlices(); track slice.label) {
+        <div class="ag-donut__row">
+          <div class="ag-donut__identity">
+            <span class="ag-donut__swatch" [style.background]="slice.color"></span>
+            <span class="ag-donut__label">{{ slice.label }}</span>
+          </div>
+          <div class="ag-donut__values">
+            <span class="ag-donut__pct">{{ slice.percentage }}</span>
+            <span class="ag-donut__val">{{ slice.formattedValue }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -17,6 +17,7 @@ import {
   DropdownOption,
   UiSearchableDropdownComponent,
 } from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import { formatAppDate, formatAppDateTime } from '../../../../shared/format/date-time.util';
 
 const KNOWN_ACTION_LABELS: Readonly<Record<string, string>> = {
   'subscription.status_transition': 'Subscription status changed',
@@ -197,16 +198,8 @@ export class AuditInquiryPage {
   readonly retentionCutoffFormatted = computed(() => {
     const cutoff = this.retention()?.cutoffAt;
     if (!cutoff) return null;
-    try {
-      const d = new Date(cutoff);
-      return d.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    } catch {
-      return null;
-    }
+    const formatted = formatAppDate(cutoff);
+    return formatted !== '—' ? formatted : null;
   });
   readonly daysUntilOldestExpires = computed(() => {
     const oldest = this.retention()?.oldestVisibleEventAt;
@@ -581,21 +574,7 @@ export class AuditInquiryPage {
 
   // Formatting Helpers
   formatDateTime(dateVal: unknown): string {
-    if (!dateVal) return '—';
-    try {
-      const date = new Date(String(dateVal));
-      if (Number.isNaN(date.getTime())) return String(dateVal);
-      return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: this.organizationTimezone(),
-      });
-    } catch {
-      return String(dateVal);
-    }
+    return formatAppDateTime(dateVal as string | Date);
   }
 
   formatActor(actorId: string | null | undefined): string {

@@ -2,11 +2,12 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { EMPTY, forkJoin, merge, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
+import { forkJoin, merge, Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PurchasesApi } from '../../data-access/purchases.api';
 import { ReturnsApi } from '../../data-access/returns.api';
 import {
+  PurchaseCorrectInput,
   PurchaseDraftInput,
   PurchaseLineInput,
   PurchasePaymentInput,
@@ -34,6 +35,18 @@ import {
 } from '../../../../shared/form/form-field.util';
 import { UiConfirmDialogComponent } from '../../../../shared/ui/ui-confirm-dialog/ui-confirm-dialog.component';
 import { CapabilityService } from '../../../capabilities/data-access/capability.service';
+import {
+  UiSearchableDropdownComponent,
+  SearchableDropdownOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/ui-searchable-dropdown.component';
+import {
+  formatWarehouseOption,
+  formatSupplierOption,
+  formatProductOption,
+  formatAccountOption,
+  formatPackagingUnitOption,
+} from '../../../../shared/ui/ui-searchable-dropdown/entity-dropdown-formatters';
+import { AppDatePipe, AppDateTimePipe } from '../../../../shared/format/date-time.pipe';
 
 function toCleanString(val: unknown): string {
   if (val === null || val === undefined) {
@@ -60,6 +73,9 @@ function toMoneyString(val: unknown, fallback = '0.00'): string {
     UiLoadingStateComponent,
     UiConfirmDialogComponent,
     UiFieldLabelComponent,
+    UiSearchableDropdownComponent,
+    AppDatePipe,
+    AppDateTimePipe,
   ],
   templateUrl: './purchase-edit.page.html',
   styleUrl: './purchase-edit.page.scss',
@@ -79,6 +95,8 @@ export class PurchaseEditPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly productSearchChanges = new Subject<string>();
   private readonly supplierSearchChanges = new Subject<string>();
+  private readonly knownProducts = new Map<string, ProductRecord>();
+  private readonly knownSuppliers = new Map<string, SupplierRecord>();
 
   readonly purchaseId = signal<string | null>(null);
   readonly purchase = signal<PurchaseRecord | null>(null);
@@ -98,9 +116,35 @@ export class PurchaseEditPage {
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly accounts = signal<AccountRecord[]>([]);
   readonly packagingByLine = signal<Record<number, PackagingUnitRecord[]>>({});
+
+  readonly isCorrectionMode = computed(
+    () =>
+      this.route.snapshot.url.some((segment) => segment.path === 'correct') ||
+      this.router.url.includes('/correct'),
+  );
+
+  readonly warehouseOptions = computed<SearchableDropdownOption[]>(() =>
+    this.warehouses().map(formatWarehouseOption),
+  );
+  readonly supplierOptions = computed<SearchableDropdownOption[]>(() =>
+    this.suppliers().map(formatSupplierOption),
+  );
+  readonly productOptions = computed<SearchableDropdownOption[]>(() =>
+    this.products().map((product) => {
+      const base = formatProductOption(product);
+      return {
+        ...base,
+        meta: product.trackingMode || 'none',
+      };
+    }),
+  );
+  readonly accountOptions = computed<SearchableDropdownOption[]>(() =>
+    this.accounts().map(formatAccountOption),
+  );
   readonly isPosted = computed(() => this.purchase()?.status === 'posted');
   readonly isCancelled = computed(() => this.purchase()?.status === 'cancelled');
   readonly isDraft = computed(() => {
+    if (this.isCorrectionMode()) return false;
     const record = this.purchase();
     return record === null || record.status === 'draft';
   });
@@ -154,6 +198,14 @@ export class PurchaseEditPage {
       (this.capabilityService?.canPerformAction('purchases.actions.cancel') ?? true) &&
       this.isPosted(),
   );
+  readonly canCorrect = computed(
+    () =>
+      this.sessionStore.hasPermission('purchases.cancel') &&
+      this.sessionStore.hasPermission('purchases.post') &&
+      this.canUsePurchases() &&
+      (this.capabilityService?.canPerformAction('purchases.actions.cancel') ?? true) &&
+      (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true),
+  );
   readonly canReturn = computed(
     () =>
       this.sessionStore.hasPermission('purchases.return') &&
@@ -168,11 +220,25 @@ export class PurchaseEditPage {
     () =>
       this.sessionStore.hasPermission('purchases.post') &&
       this.canUsePurchases() &&
-      this.isDraft() &&
+      (this.isDraft() || this.isCorrectionMode()) &&
       (this.capabilityService?.canPerformAction('purchases.actions.post') ?? true) &&
       (this.capabilityService?.canPerformAction('purchases.actions.addPaymentAtPost') ?? true),
   );
+  readonly formRevision = signal(0);
   readonly formValid = signal(false);
+
+  readonly originalPurchaseRef = computed(() => {
+    const p = this.purchase();
+    if (!p) return '';
+    return p.supplierInvoiceReference || ('Purchase #' + p.id.slice(-6).toUpperCase());
+  });
+
+  readonly isCorrectionReasonValid = computed(() => {
+    this.formRevision();
+    if (!this.isCorrectionMode()) return true;
+    const len = toCleanString(this.form.controls.correctionReason.value).length;
+    return len >= 1 && len <= 1000;
+  });
 
   isDraftValid(): boolean {
     if (!this.form.valid) {
@@ -207,6 +273,12 @@ export class PurchaseEditPage {
         return false;
       }
     }
+    if (this.isCorrectionMode()) {
+      const reason = toCleanString(this.form.controls.correctionReason.value);
+      if (!reason || reason.length > 1000) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -228,17 +300,122 @@ export class PurchaseEditPage {
       !this.posting() &&
       this.isDraft(),
   );
+
+  readonly canSaveCorrection = computed(
+    () =>
+      this.isCorrectionMode() &&
+      this.canCorrect() &&
+      this.isDraftValid() &&
+      !this.saving() &&
+      !this.posting(),
+  );
+
   private version = 1;
 
   readonly fieldRequired = hasRequiredValidator;
   readonly fieldError = fieldValidationMessage;
+
+  // Impact Preview computations (Section 7)
+  readonly formLinesSummary = computed(() => {
+    this.formRevision();
+    const rawLines = (this.lines.value || []) as Array<{
+      productId: string;
+      quantity: string;
+      unitCost: string;
+      batchNumber?: string;
+    }>;
+    let totalQty = 0;
+    let totalGoods = 0;
+    const items = rawLines.map((l, idx) => {
+      const q = parseFloat(l.quantity) || 0;
+      const c = parseFloat(l.unitCost) || 0;
+      const lineTotal = q * c;
+      totalQty += q;
+      totalGoods += lineTotal;
+      const origLine = this.purchase()?.lines?.[idx];
+      const origQty = origLine ? parseFloat(origLine.quantity) || 0 : 0;
+      const origTotal = origLine ? parseFloat(origLine.lineProductAmount?.amount) || 0 : 0;
+      const origCost = origLine ? parseFloat(origLine.unitCost?.amount) || 0 : 0;
+      return {
+        idx,
+        productName:
+          this.productSelectedLabel(idx) ||
+          origLine?.productNameSnapshot ||
+          `Product Line #${idx + 1}`,
+        replacementQty: q,
+        replacementCost: c,
+        replacementTotal: lineTotal,
+        originalQty: origQty,
+        originalCost: origCost,
+        originalTotal: origTotal,
+        qtyDiff: q - origQty,
+        totalDiff: lineTotal - origTotal,
+        batchNumber: l.batchNumber || '—',
+        originalBatchNumber: origLine?.batchNumber || '—',
+      };
+    });
+    return { items, totalQty, totalGoods };
+  });
+
+  readonly formLandedTotal = computed(() => {
+    this.formRevision();
+    const f = parseFloat(this.form.controls.freight.value) || 0;
+    const l = parseFloat(this.form.controls.loadingCost.value) || 0;
+    const t = parseFloat(this.form.controls.transport.value) || 0;
+    const o = parseFloat(this.form.controls.other.value) || 0;
+    return f + l + t + o;
+  });
+
+  readonly formPurchaseTotal = computed(() => {
+    return this.formLinesSummary().totalGoods + this.formLandedTotal();
+  });
+
+  readonly formPaidTotal = computed(() => {
+    this.formRevision();
+    const pmts = (this.payments.value || []) as Array<{ amount: string }>;
+    return pmts.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
+  });
+
+  readonly formPayableTotal = computed(() => {
+    return Math.max(0, this.formPurchaseTotal() - this.formPaidTotal());
+  });
+
+  readonly previewOriginalTotals = computed(() => {
+    const p = this.purchase();
+    const goods = parseFloat(p?.goodsTotal?.amount || '0') || 0;
+    const landed = parseFloat(p?.landedCostTotal?.amount || '0') || 0;
+    const total = parseFloat(p?.purchaseTotal?.amount || '0') || 0;
+    const paid = parseFloat(p?.paidTotal?.amount || '0') || 0;
+    const payable = parseFloat(p?.payableTotal?.amount || '0') || 0;
+    return { goods, landed, total, paid, payable };
+  });
+
+  readonly previewDiffs = computed(() => {
+    const orig = this.previewOriginalTotals();
+    const repGoods = this.formLinesSummary().totalGoods;
+    const repLanded = this.formLandedTotal();
+    const repTotal = this.formPurchaseTotal();
+    const repPaid = this.formPaidTotal();
+    const repPayable = this.formPayableTotal();
+    return {
+      goodsDiff: repGoods - orig.goods,
+      landedDiff: repLanded - orig.landed,
+      totalDiff: repTotal - orig.total,
+      paidDiff: repPaid - orig.paid,
+      payableDiff: repPayable - orig.payable,
+    };
+  });
 
   canViewPurchaseField(id: string): boolean {
     return this.capabilityService?.canViewField(`purchases.fields.${id}`) ?? true;
   }
 
   canEditPurchaseField(id: string): boolean {
-    const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
+    const canMutate = this.isCorrectionMode()
+      ? this.canCorrect()
+      : this.purchaseId() === null
+        ? this.canCreate()
+        : this.canEditDraft();
     return canMutate && (this.capabilityService?.canEditField(`purchases.fields.${id}`) ?? true);
   }
 
@@ -254,13 +431,15 @@ export class PurchaseEditPage {
   }
 
   statusLabel(status?: string | null): string {
-    if (status === 'draft') return 'Draft (unposted)';
+    if (this.isCorrectionMode()) return 'Correction Mode';
+    if (status === 'draft') return 'Draft';
     if (status === 'posted') return 'Posted';
     if (status === 'cancelled') return 'Cancelled';
     return status || 'Draft';
   }
 
   statusTone(status?: string | null): 'warning' | 'success' | 'danger' | 'neutral' {
+    if (this.isCorrectionMode()) return 'warning';
     if (status === 'draft') return 'warning';
     if (status === 'posted') return 'success';
     if (status === 'cancelled') return 'danger';
@@ -277,6 +456,7 @@ export class PurchaseEditPage {
     loadingCost: ['0.00'],
     transport: ['0.00'],
     other: ['0.00'],
+    correctionReason: [''],
     lines: this.formBuilder.array([this.createLineGroup()]),
     payments: this.formBuilder.array<FormGroup>([]),
   });
@@ -307,6 +487,7 @@ export class PurchaseEditPage {
     merge(this.form.statusChanges, this.form.valueChanges)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
+        this.formRevision.update((v) => v + 1);
         this.formValid.set(this.isDraftValid());
       });
 
@@ -316,7 +497,7 @@ export class PurchaseEditPage {
       this.purchaseId.set(id);
     }
 
-    if (!this.canView() && !this.canCreate()) {
+    if (!this.canView() && !this.canCreate() && !this.canCorrect()) {
       this.loading.set(false);
       return;
     }
@@ -326,6 +507,17 @@ export class PurchaseEditPage {
       accounts: this.accountsApi.listAccountOptions(),
     });
 
+    this.form.controls.supplierId.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((supplierId) => {
+        if (supplierId) {
+          const selected = this.suppliers().find((s) => s.id === supplierId);
+          if (selected) {
+            this.knownSuppliers.set(supplierId, selected);
+          }
+        }
+      });
+
     this.productSearchChanges
       .pipe(
         debounceTime(300),
@@ -333,7 +525,9 @@ export class PurchaseEditPage {
         switchMap((query) => this.catalogApi.searchProductOptions(query, 25, 'active')),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.products.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.products.set(items.filter((item) => item.status === 'active'));
+      });
 
     this.supplierSearchChanges
       .pipe(
@@ -342,7 +536,9 @@ export class PurchaseEditPage {
         switchMap((query) => this.suppliersApi.searchSupplierOptions(query)),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((items) => this.suppliers.set(items.filter((item) => item.status === 'active')));
+      .subscribe((items) => {
+        this.suppliers.set(items.filter((item) => item.status === 'active'));
+      });
 
     this.supplierSearchChanges.next('');
     this.productSearchChanges.next('');
@@ -356,6 +552,14 @@ export class PurchaseEditPage {
         .subscribe({
           next: ({ masters, purchase }) => {
             this.applyMasters(masters);
+            if (this.isCorrectionMode()) {
+              if (purchase.status !== 'posted' || purchase.replacementPurchaseId) {
+                this.errorMessage.set(
+                  'Only an uncorrected posted purchase can be corrected. This purchase cannot be corrected.',
+                );
+              }
+              setRequiredValidator(this.form.controls.correctionReason, true);
+            }
             this.applyPurchase(purchase);
             this.loading.set(false);
           },
@@ -414,7 +618,9 @@ export class PurchaseEditPage {
 
   trackingModeForLine(index: number): string {
     const productId = String(this.lineGroup(index).get('productId')?.value ?? '');
-    const fromCatalog = this.products().find((item) => item.id === productId)?.trackingMode;
+    const fromCatalog =
+      this.knownProducts.get(productId)?.trackingMode ??
+      this.products().find((item) => item.id === productId)?.trackingMode;
     if (fromCatalog) {
       return fromCatalog;
     }
@@ -426,8 +632,59 @@ export class PurchaseEditPage {
     return this.packagingByLine()[index] ?? [];
   }
 
+  packagingOptionsForLine(index: number): SearchableDropdownOption[] {
+    const units = this.packagingUnitsForLine(index);
+    return [
+      { value: '', label: 'Base unit' },
+      ...units.map(formatPackagingUnitOption),
+    ];
+  }
+
+  onSupplierComboboxSearch(query: string): void {
+    this.supplierSearchChanges.next(query.trim());
+  }
+
+  onProductComboboxSearch(query: string): void {
+    this.productSearchChanges.next(query.trim());
+  }
+
+  productSelectedLabel(index: number): string {
+    const control = this.lines.at(index)?.get('productId');
+    const productId = String(control?.value ?? '').trim();
+    if (!productId) {
+      return '';
+    }
+    const known =
+      this.knownProducts.get(productId) ??
+      this.products().find((p) => p.id === productId);
+    if (known) {
+      return known.name;
+    }
+    const snapshot = this.purchase()?.lines[index]?.productNameSnapshot;
+    return snapshot ?? '';
+  }
+
+  supplierSelectedLabel(): string {
+    const supplierId = String(this.form.controls.supplierId.value ?? '').trim();
+    if (!supplierId) {
+      return '';
+    }
+    const known =
+      this.knownSuppliers.get(supplierId) ??
+      this.suppliers().find((s) => s.id === supplierId);
+    if (known) {
+      return known.name;
+    }
+    const snapshot = this.purchase()?.supplierNameSnapshot;
+    return snapshot ?? '';
+  }
+
   addLine(): void {
-    const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
+    const canMutate = this.isCorrectionMode()
+      ? this.canCorrect()
+      : this.purchaseId() === null
+        ? this.canCreate()
+        : this.canEditDraft();
     if (!canMutate) {
       return;
     }
@@ -438,7 +695,11 @@ export class PurchaseEditPage {
   }
 
   removeLine(index: number): void {
-    const canMutate = this.purchaseId() === null ? this.canCreate() : this.canEditDraft();
+    const canMutate = this.isCorrectionMode()
+      ? this.canCorrect()
+      : this.purchaseId() === null
+        ? this.canCreate()
+        : this.canEditDraft();
     if (!canMutate) {
       return;
     }
@@ -731,6 +992,88 @@ export class PurchaseEditPage {
     }
   }
 
+  postCorrection(): void {
+    const id = this.purchaseId();
+    if (!id || !this.canCorrect() || this.posting()) {
+      return;
+    }
+    this.formSubmitAttempted.set(true);
+    this.form.markAllAsTouched();
+    for (let index = 0; index < this.lines.length; index += 1) {
+      this.lineGroup(index).markAllAsTouched();
+    }
+    for (const control of this.payments.controls) {
+      control.markAllAsTouched();
+    }
+
+    if (!this.isDraftValid() || !this.isCorrectionReasonValid()) {
+      if (!this.isCorrectionReasonValid()) {
+        this.errorMessage.set('A mandatory correction reason (1 to 1000 characters) is required.');
+      } else {
+        this.errorMessage.set('Please fix form validation errors before posting correction.');
+      }
+      return;
+    }
+
+    for (const control of this.payments.controls) {
+      if (control.invalid) {
+        this.errorMessage.set('Fix payment lines before posting correction.');
+        return;
+      }
+      const val = (control as FormGroup).getRawValue() as Record<string, unknown>;
+      const accountId = toCleanString(val['accountId']);
+      const amountStr = toCleanString(val['amount']);
+      const amountNum = Number(amountStr);
+      if (!accountId || !Number.isFinite(amountNum) || amountNum <= 0) {
+        this.errorMessage.set('Payment lines must specify an account and an amount greater than 0.');
+        return;
+      }
+    }
+
+    try {
+      const payments: PurchasePaymentInput[] = this.payments.controls.map((control) => {
+        const value = (control as FormGroup).getRawValue() as Record<string, unknown>;
+        return {
+          accountId: toCleanString(value['accountId']),
+          amount: { amount: toCleanString(value['amount']), currency: 'PKR' },
+        };
+      });
+
+      const draftPayload = this.buildPayload();
+      const reason = toCleanString(this.form.controls.correctionReason.value);
+
+      this.posting.set(true);
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
+
+      const payload: PurchaseCorrectInput = {
+        expectedVersion: this.version,
+        correctionReason: reason,
+        correctedPurchase: {
+          ...draftPayload,
+          payments,
+        },
+      };
+
+      this.api.correctPurchase(id, payload, crypto.randomUUID()).subscribe({
+        next: (result) => {
+          this.posting.set(false);
+          this.successMessage.set('Purchase corrected successfully.');
+          void this.router.navigateByUrl(`/app/purchases/${result.replacementPurchase.id}`);
+        },
+        error: (error: unknown) => {
+          this.posting.set(false);
+          this.errorMessage.set(this.mapError(error, 'Unable to correct purchase.'));
+        },
+      });
+    } catch (err: unknown) {
+      this.posting.set(false);
+      this.errorMessage.set(
+        err instanceof Error ? err.message : 'Unable to prepare purchase correction.',
+      );
+    }
+  }
+
   discard(): void {
     const id = this.purchaseId();
     if (!id || !this.canDiscard()) {
@@ -866,26 +1209,24 @@ export class PurchaseEditPage {
   }
 
   private seedSelectorOptionsFromPurchase(purchase: PurchaseRecord): void {
-    this.suppliers.set([
-      {
-        id: purchase.supplierId,
-        organizationId: purchase.organizationId,
-        name: purchase.supplierNameSnapshot,
-        phone: '',
-        contactName: '',
-        email: '',
-        status: 'active',
-        version: purchase.version,
-      },
-    ]);
+    const seededSupplier: SupplierRecord = {
+      id: purchase.supplierId,
+      organizationId: purchase.organizationId,
+      name: purchase.supplierNameSnapshot,
+      phone: '',
+      contactName: '',
+      email: '',
+      status: 'active',
+      version: purchase.version,
+    };
+    this.knownSuppliers.set(purchase.supplierId, seededSupplier);
     const seen = new Set<string>();
-    const productOptions: ProductRecord[] = [];
     for (const line of purchase.lines ?? []) {
       if (seen.has(line.productId)) {
         continue;
       }
       seen.add(line.productId);
-      productOptions.push({
+      const seededProduct: ProductRecord = {
         id: line.productId,
         organizationId: purchase.organizationId,
         categoryId: '',
@@ -896,9 +1237,9 @@ export class PurchaseEditPage {
         measurementDimension: 'mass',
         status: 'active',
         version: 1,
-      });
+      };
+      this.knownProducts.set(line.productId, seededProduct);
     }
-    this.products.set(productOptions);
   }
 
   private applyPurchase(purchase: PurchaseRecord): void {
@@ -934,7 +1275,7 @@ export class PurchaseEditPage {
         }),
       );
       this.syncLineTrackingRequired(index);
-      if (!posted) {
+      if (!posted || this.isCorrectionMode()) {
         this.bindLineProductChanges(index);
         this.catalogApi.listPackagingUnits(line.productId).subscribe({
           next: (units) => {
@@ -951,7 +1292,8 @@ export class PurchaseEditPage {
     }
 
     this.payments.clear();
-    const locked = purchase.status === 'posted' || purchase.status === 'cancelled';
+    const locked =
+      (purchase.status === 'posted' || purchase.status === 'cancelled') && !this.isCorrectionMode();
     if (locked) {
       for (const payment of purchase.payments ?? []) {
         this.payments.push(
@@ -963,9 +1305,18 @@ export class PurchaseEditPage {
       }
       this.form.disable({ emitEvent: false });
     } else {
+      for (const payment of purchase.payments ?? []) {
+        this.payments.push(
+          this.createPaymentGroup({
+            accountId: payment.accountId,
+            amount: payment.amount.amount,
+          }),
+        );
+      }
       this.form.enable({ emitEvent: false });
     }
     this.formValid.set(this.isDraftValid());
+    this.formRevision.update((v) => v + 1);
   }
 
   private bindLineProductChanges(index: number): void {
@@ -979,6 +1330,10 @@ export class PurchaseEditPage {
       if (!productId) {
         this.packagingByLine.update((current) => ({ ...current, [index]: [] }));
         return;
+      }
+      const selected = this.products().find((p) => p.id === productId);
+      if (selected) {
+        this.knownProducts.set(productId, selected);
       }
       this.catalogApi.listPackagingUnits(productId).subscribe({
         next: (units) => {
@@ -1028,7 +1383,9 @@ export class PurchaseEditPage {
     const lines: PurchaseLineInput[] = rawLines.map((line) => {
       const productId = toCleanString(line['productId']);
       const mode =
-        this.products().find((item) => item.id === productId)?.trackingMode ?? 'none';
+        this.knownProducts.get(productId)?.trackingMode ??
+        this.products().find((item) => item.id === productId)?.trackingMode ??
+        'none';
       const quantity = toCleanString(line['quantity']);
       const unitCost = toCleanString(line['unitCost']);
       const packagingUnitId = toCleanString(line['packagingUnitId']);
@@ -1093,7 +1450,23 @@ export class PurchaseEditPage {
     if (error.error?.error?.code === 'VERSION_CONFLICT') {
       return 'This purchase changed elsewhere. Reload and try again.';
     }
-    return error.error?.error?.message ?? fallback;
+    const msg: string = error.error?.error?.message ?? error.error?.message ?? '';
+    if (msg.includes('posted purchase returns exist')) {
+      return 'This Purchase cannot be corrected or cancelled because posted purchase returns exist. Reverse the dependent return first.';
+    }
+    if (msg.includes('Supplier Payment allocations')) {
+      return 'This Purchase has dependent Supplier Payment allocations. Reverse or correct those payments first.';
+    }
+    if (msg.includes('insufficient') || msg.includes('consumed')) {
+      return 'Cannot reverse original purchase stock because received inventory has already been sold, consumed, or transferred.';
+    }
+    if (msg.includes('modified by another request')) {
+      return 'Purchase was modified by another request. Reload and try again.';
+    }
+    if (msg.includes('Only an uncorrected posted purchase can be corrected')) {
+      return 'Only an uncorrected posted purchase can be corrected. This purchase has already been corrected or cancelled.';
+    }
+    return msg || fallback;
   }
 
   formatAmount(val: string | null | undefined): string {

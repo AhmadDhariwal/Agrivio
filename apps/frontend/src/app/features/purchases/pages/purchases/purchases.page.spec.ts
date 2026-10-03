@@ -97,6 +97,14 @@ const mockCancelledPurchase: PurchaseRecord = {
   cancellationReason: 'Supplier damaged packaging',
 };
 
+const mockCorrectedPurchase: PurchaseRecord = {
+  ...mockPostedPurchase,
+  id: 'pur-4',
+  supplierInvoiceReference: 'CORR-999',
+  replacementPurchaseId: 'pur-5',
+  correctionStatus: 'corrected',
+};
+
 describe('PurchasesPage', () => {
   let mockListPurchases: (
     query?: unknown,
@@ -161,7 +169,7 @@ describe('PurchasesPage', () => {
     // Verify row contents
     expect(rows[0]?.textContent).toContain('ENG-901');
     expect(rows[0]?.textContent).toContain('Ali Fertilizers');
-    expect(rows[0]?.textContent).toContain('Draft (unposted)');
+    expect(rows[0]?.textContent).toContain('Draft');
 
     expect(rows[1]?.textContent).toContain('FFC-441');
     expect(rows[1]?.textContent).toContain('Fauji Fertilizer Co');
@@ -210,6 +218,25 @@ describe('PurchasesPage', () => {
     expect(action2?.textContent?.trim()).toBe('View');
     expect(rows[1]?.textContent).not.toContain('Edit draft');
     expect(rows[2]?.textContent).not.toContain('Edit draft');
+  });
+
+  it('routes purchase references to their purchase details on desktop and mobile', () => {
+    const fixture: ComponentFixture<PurchasesPage> = TestBed.createComponent(PurchasesPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const desktopRows = compiled.querySelectorAll('[data-testid="purchase-row"]');
+    const mobileCards = compiled.querySelectorAll('[data-testid="purchase-mobile-card"]');
+
+    expect(
+      desktopRows[0]?.querySelector('[data-testid="purchase-reference-link"]')?.getAttribute('href'),
+    ).toBe('/app/purchases/pur-1');
+    expect(
+      desktopRows[1]?.querySelector('[data-testid="purchase-reference-link"]')?.getAttribute('href'),
+    ).toBe('/app/purchases/pur-2');
+    expect(
+      mobileCards[0]?.querySelector('[data-testid="purchase-reference-link"]')?.getAttribute('href'),
+    ).toBe('/app/purchases/pur-1');
   });
 
   it('handles search and status query filtering and clear action', () => {
@@ -266,5 +293,19 @@ describe('PurchasesPage', () => {
     expect(
       disabledFixture.nativeElement.querySelector('[data-testid="purchases-permission-alert"]'),
     ).toBeTruthy();
+  });
+  it('renders Corrected status indicator for corrected purchases', () => {
+    mockListPurchases = () =>
+      of({
+        items: [mockCorrectedPurchase],
+        meta: { page: 1, pageSize: 25, total: 1 },
+      });
+    const fixture = TestBed.createComponent(PurchasesPage);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const row = compiled.querySelector('[data-testid="purchase-row"]');
+    expect(row?.textContent).toContain('CORR-999');
+    expect(row?.textContent).toContain('Corrected');
   });
 });
