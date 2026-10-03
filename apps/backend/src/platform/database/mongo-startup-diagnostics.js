@@ -26,10 +26,12 @@ function assertMongoConnectionContract(config) {
   ) {
     issues.push('MONGODB_DB_NAME is missing or empty');
   }
+  const isSrv = config && typeof config.mongodbUri === 'string' && config.mongodbUri.startsWith('mongodb+srv://');
   if (
-    !config ||
+    !isSrv &&
+    (!config ||
     typeof config.mongodbReplicaSet !== 'string' ||
-    config.mongodbReplicaSet.trim() === ''
+    config.mongodbReplicaSet.trim() === '')
   ) {
     issues.push('MONGODB_REPLICA_SET is missing or empty');
   }
@@ -43,7 +45,7 @@ function assertMongoConnectionContract(config) {
   }
 
   const uriReplicaSet = extractReplicaSetFromUri(config.mongodbUri);
-  if (!uriReplicaSet) {
+  if (!isSrv && !uriReplicaSet) {
     return {
       ok: false,
       code: 'invalid_database_configuration',
@@ -52,7 +54,7 @@ function assertMongoConnectionContract(config) {
     };
   }
 
-  if (uriReplicaSet !== config.mongodbReplicaSet) {
+  if (!isSrv && uriReplicaSet !== config.mongodbReplicaSet) {
     return {
       ok: false,
       code: 'invalid_database_configuration',
@@ -103,7 +105,8 @@ async function diagnoseMongoStartupFailure(config, connectError) {
     return contract;
   }
 
-  const expectedRs = config.mongodbReplicaSet;
+  const isSrv = config.mongodbUri.startsWith('mongodb+srv://');
+  const expectedRs = config.mongodbReplicaSet || (isSrv ? 'the Atlas cluster replica set' : 'rs0');
   const originalMessage =
     connectError instanceof Error ? connectError.message : String(connectError);
 
@@ -145,7 +148,7 @@ async function diagnoseMongoStartupFailure(config, connectError) {
     };
   }
 
-  if (observedSetName !== expectedRs) {
+  if (!isSrv && observedSetName !== expectedRs) {
     return {
       ok: false,
       code: 'wrong_replica_set_name',
@@ -224,7 +227,8 @@ async function assertConnectedReplicaSetReady(config) {
     throw error;
   }
 
-  if (observedSetName !== config.mongodbReplicaSet) {
+  const isSrv = config.mongodbUri.startsWith('mongodb+srv://');
+  if (!isSrv && observedSetName !== config.mongodbReplicaSet) {
     const error = new Error(
       `Connected replica set '${observedSetName}' does not match MONGODB_REPLICA_SET='${config.mongodbReplicaSet}'.`,
     );
@@ -234,7 +238,7 @@ async function assertConnectedReplicaSetReady(config) {
 
   if (hello.isWritablePrimary !== true) {
     const error = new Error(
-      `Replica set '${config.mongodbReplicaSet}' is connected but this member is not PRIMARY.`,
+      `Replica set '${observedSetName}' is connected but this member is not PRIMARY.`,
     );
     error.code = 'no_primary';
     throw error;

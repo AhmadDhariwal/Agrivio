@@ -143,9 +143,13 @@ function loadApiEnv(env = process.env) {
     issues.push('MONGODB_DB_NAME must be a non-empty string');
   }
 
-  const mongodbReplicaSet = env['MONGODB_REPLICA_SET'] ?? 'rs0';
+  const isSrv = isNonEmptyString(mongodbUri) && mongodbUri.startsWith('mongodb+srv://');
+  let mongodbReplicaSet = env['MONGODB_REPLICA_SET'];
   if (!isNonEmptyString(mongodbReplicaSet)) {
-    issues.push('MONGODB_REPLICA_SET must be a non-empty string');
+    mongodbReplicaSet = isSrv ? '' : 'rs0';
+  }
+  if (!isSrv && !isNonEmptyString(mongodbReplicaSet)) {
+    issues.push('MONGODB_REPLICA_SET must be a non-empty string for non-SRV connections');
   }
 
   const sessionSecret =
