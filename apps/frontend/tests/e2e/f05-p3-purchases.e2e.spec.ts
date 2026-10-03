@@ -1,6 +1,6 @@
 import { API, activationTokenFromUrl } from './e2e-origins';
-import { login, enterPlatformWorkspace } from './e2e-auth-helper';
-import { expect, test, type Page } from '@playwright/test';
+import { login, enterPlatformWorkspace, seedStarterPlan } from './e2e-auth-helper';
+import { expect, test } from '@playwright/test';
 
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
@@ -29,15 +29,16 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -121,10 +122,10 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     const suppliersResp = await page.request.get(`${API}/api/v1/suppliers`);
     expect(suppliersResp.status()).toBe(200);
     const suppliersBody = await suppliersResp.json();
-    const supplierList = Array.isArray(suppliersBody.data) ? suppliersBody.data : (suppliersBody.data?.items ?? []);
-    const p3Supplier = supplierList.find(
-      (item: { name: string }) => item.name === 'P3 Supplier',
-    );
+    const supplierList = Array.isArray(suppliersBody.data)
+      ? suppliersBody.data
+      : (suppliersBody.data?.items ?? []);
+    const p3Supplier = supplierList.find((item: { name: string }) => item.name === 'P3 Supplier');
     expect(p3Supplier).toBeDefined();
     expect(p3Supplier.derivedBalances.payable.amount).toBe('500.00');
     const supplierId = p3Supplier.id;
@@ -141,12 +142,12 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await expect(page.getByTestId('supplier-payment-success')).toBeVisible();
 
     // ---- Verify allocation via API ----
-    const unpaidResp = await page.request.get(`${API}/api/v1/suppliers/${supplierId}/unpaid-purchases`);
+    const unpaidResp = await page.request.get(
+      `${API}/api/v1/suppliers/${supplierId}/unpaid-purchases`,
+    );
     expect(unpaidResp.status()).toBe(200);
     const unpaidBody = await unpaidResp.json();
-    const unpaidEntry = unpaidBody.data.items.find(
-      (i: { id: string }) => i.id === purchase1Id,
-    );
+    const unpaidEntry = unpaidBody.data.items.find((i: { id: string }) => i.id === purchase1Id);
     expect(unpaidEntry).toBeDefined();
     expect(unpaidEntry.outstanding.amount).toBe('300.00');
 
@@ -177,7 +178,9 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     const movementsResp = await page.request.get(`${API}/api/v1/inventory/movements`);
     expect(movementsResp.status()).toBe(200);
     const movementsBody = await movementsResp.json();
-    const movementsList = Array.isArray(movementsBody.data) ? movementsBody.data : (movementsBody.data?.items ?? []);
+    const movementsList = Array.isArray(movementsBody.data)
+      ? movementsBody.data
+      : (movementsBody.data?.items ?? []);
     expect(
       movementsList.some((m: { sourceType: string }) => m.sourceType === 'purchase_return'),
     ).toBe(true);
@@ -222,26 +225,8 @@ test.describe('F05 P3 supplier payments, returns, cancellation, reconciliation E
     await page.getByTestId('nav-supplier-payments').click();
     await page.getByTestId('supplier-ledger-link').click();
     await page.getByTestId('ledger-supplier-select').selectOption({ label: 'P3 Supplier' });
-    await expect(page.getByTestId('supplier-ledger-reconciliation-status')).toContainText('Healthy');
+    await expect(page.getByTestId('supplier-ledger-reconciliation-status')).toContainText(
+      'Healthy',
+    );
   });
 });
-
-async function seedStarterPlan(request: import('@playwright/test').APIRequestContext) {
-  const csrf = await request.post(`${API}/api/v1/auth/csrf`);
-  const csrfBody = await csrf.json();
-  const token = csrfBody.data.csrfToken as string;
-  const plan = await request.post(`${API}/api/v1/platform/subscription-plans`, {
-    headers: {
-      'X-CSRF-Token': token,
-      'X-Platform-Actor': 'super-admin',
-    },
-    data: {
-      planCode: 'Starter',
-      activate: true,
-      monthlyPriceMinorUnits: 1000,
-      limits: { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
-    },
-  });
-  expect([200, 201]).toContain(plan.status());
-}
-

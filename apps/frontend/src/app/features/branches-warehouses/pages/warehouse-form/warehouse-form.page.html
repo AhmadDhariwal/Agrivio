@@ -117,14 +117,14 @@
           }
 
           <div class="ag-field">
-            <agrivio-ui-field-label label="Branch" for="warehouse-branch-create" [required]="true" />
+            <agrivio-ui-field-label label="Branch (optional)" for="warehouse-branch-create" />
             <select id="warehouse-branch-create" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
               <option value="">Select branch</option>
               @for (branch of branches(); track branch.id) {
               <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
               }
             </select>
-            <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
+            <p class="field-helper">Transactions can use this warehouse with this branch, or standalone if none selected.</p>
           </div>
 
           <!-- Default Warehouse Toggle Card -->
@@ -364,14 +364,14 @@
           }
 
           <div class="ag-field">
-            <agrivio-ui-field-label label="Branch" for="warehouse-branch-edit" [required]="true" />
+            <agrivio-ui-field-label label="Branch (optional)" for="warehouse-branch-edit" />
             <select id="warehouse-branch-edit" class="ag-select" formControlName="branchId" data-testid="warehouse-branch">
               <option value="">Select branch</option>
               @for (branch of branches(); track branch.id) {
               <option [value]="branch.id">{{ branch.name }}{{ branch.isDefault ? ' · Default' : '' }}</option>
               }
             </select>
-            <p class="field-helper">Transactions can use this warehouse only with this branch.</p>
+            <p class="field-helper">Transactions can use this warehouse with this branch, or standalone if none selected.</p>
           </div>
 
           <!-- Default Warehouse Toggle Card -->

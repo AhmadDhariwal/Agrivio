@@ -130,7 +130,13 @@ export class PurchaseEditPage {
     this.suppliers().map(formatSupplierOption),
   );
   readonly productOptions = computed<SearchableDropdownOption[]>(() =>
-    this.products().map(formatProductOption),
+    this.products().map((product) => {
+      const base = formatProductOption(product);
+      return {
+        ...base,
+        meta: product.trackingMode || 'none',
+      };
+    }),
   );
   readonly accountOptions = computed<SearchableDropdownOption[]>(() =>
     this.accounts().map(formatAccountOption),

@@ -99,7 +99,11 @@ export class OpeningStockPage {
     this.warehouses().map((w) => formatWarehouseOption(w)),
   );
   readonly productOptions = computed(() =>
-    this.products().map((p) => formatProductOption(p)),
+    this.products().map((p) => ({
+      value: p.id,
+      label: p.name,
+      meta: p.trackingMode || 'none',
+    })),
   );
   readonly packagingOptions = computed(() =>
     this.packagingUnits().map((u) => formatPackagingUnitOption(u)),
@@ -530,8 +534,21 @@ export class OpeningStockPage {
       this.inventoryApi.postOpeningStock(payload, idempotencyKey).subscribe({
         next: (result) => {
           this.saving.set(false);
-          this.form.disable();
-          this.isEditing.set(false);
+          this.form.reset({
+            warehouseId: this.warehouses().length === 1 ? (this.warehouses()[0]?.id ?? '') : '',
+            productId: '',
+            quantity: '',
+            packagingUnitId: '',
+            batchNumber: '',
+            manufacturingDate: '',
+            expiryDate: '',
+            inventoryValue: '',
+          });
+          this.form.enable();
+          this.isEditing.set(true);
+          this.selectedProduct.set(null);
+          this.selectedTrackingMode.set('none');
+          this.formSubmitAttempted.set(false);
           this.successMessage.set(
             `Opening stock posted. Balance ${result.balance.quantityBase}; WAC ${result.costState.weightedAverageCost.amount} PKR.`,
           );

@@ -1,6 +1,6 @@
 import { API, activationTokenFromUrl } from './e2e-origins';
-import { login, enterPlatformWorkspace } from './e2e-auth-helper';
-import { expect, test, type Page } from '@playwright/test';
+import { login, enterPlatformWorkspace, seedStarterPlan } from './e2e-auth-helper';
+import { expect, test } from '@playwright/test';
 
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
@@ -30,16 +30,17 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     await expect(activationUrl).toBeVisible();
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -83,6 +84,7 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
     await page.getByTestId('opening-expiry-date').fill('2027-12-31');
     await page.getByTestId('opening-inventory-value').fill('5000.00');
     await page.getByTestId('opening-stock-save').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Post Opening Stock' }).click();
     await expect(page.getByTestId('opening-stock-success')).toBeVisible();
     await expect(page.getByTestId('opening-stock-success')).toContainText('100.0000');
 
@@ -98,26 +100,9 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
 
     await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movements-list')).toBeVisible();
-    await expect(page.getByTestId('movement-row').first()).toContainText(/opening_stock|Opening Stock/i);
+    await expect(page.getByTestId('movement-row').first()).toContainText(
+      /opening_stock|Opening Stock/i,
+    );
     await expect(page.getByTestId('movement-row').first()).toContainText('100.0000');
   });
 });
-
-async function seedStarterPlan(request: import('@playwright/test').APIRequestContext) {
-  const csrf = await request.post(`${API}/api/v1/auth/csrf`);
-  const csrfBody = await csrf.json();
-  const token = csrfBody.data.csrfToken as string;
-  await request.post(`${API}/api/v1/platform/subscription-plans`, {
-    headers: {
-      'X-CSRF-Token': token,
-      'X-Platform-Actor': 'super-admin',
-    },
-    data: {
-      planCode: 'Starter',
-      activate: true,
-      monthlyPriceMinorUnits: 1000,
-      limits: { customers: 50, suppliers: 50, products: 50, warehouses: 20, users: 20 },
-    },
-  });
-}
-

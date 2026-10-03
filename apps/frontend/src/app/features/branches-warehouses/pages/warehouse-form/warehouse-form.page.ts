@@ -156,7 +156,7 @@ export class WarehouseFormPage {
     code: ['', [Validators.maxLength(MAX_CODE)]],
 
     status: ['active'],
-    branchId: ['', Validators.required],
+    branchId: [''],
     isDefault: [false],
 
   });
@@ -277,7 +277,7 @@ export class WarehouseFormPage {
             name: value.name.trim(),
 
             ...(includeCode && value.code.trim() !== '' ? { code: value.code.trim() } : {}),
-            branchId: value.branchId,
+            ...(value.branchId ? { branchId: value.branchId } : {}),
             isDefault: value.isDefault,
 
           })
@@ -291,7 +291,7 @@ export class WarehouseFormPage {
             ...(includeCode ? { code: value.code.trim() } : {}),
 
             status: value.status,
-            branchId: value.branchId,
+            ...(value.branchId ? { branchId: value.branchId } : {}),
             isDefault: value.isDefault,
 
           });
