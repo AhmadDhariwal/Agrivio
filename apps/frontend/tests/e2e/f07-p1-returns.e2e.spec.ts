@@ -27,15 +27,16 @@ test.describe('F07 P1 sales returns', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -118,7 +119,9 @@ test.describe('F07 P1 sales returns', () => {
     await page.getByTestId('sale-date').fill('2026-08-13');
     await page.getByTestId('sale-line-product').selectOption({ label: 'F07 Product' });
     await page.getByTestId('sale-line-quantity').fill('2');
-    await expect(page.getByTestId('sale-line-unit-price')).toHaveValue('100.00', { timeout: 10_000 });
+    await expect(page.getByTestId('sale-line-unit-price')).toHaveValue('100.00', {
+      timeout: 10_000,
+    });
     await page.getByTestId('sale-save').click();
     await expect(page).toHaveURL(/\/app\/sales\/[^/]+$/);
     await expect(page.getByTestId('sale-post')).toBeVisible();
@@ -138,7 +141,9 @@ test.describe('F07 P1 sales returns', () => {
     await expect(page.getByTestId('sales-return-section')).toBeVisible();
     await page.getByTestId('sales-return-reason').fill('E2E linked sales return');
     await page.getByTestId('sales-return-resolution').selectOption('account_refund');
-    await page.getByTestId('sales-return-refund-account').selectOption({ label: 'F07 Cash (cash)' });
+    await page
+      .getByTestId('sales-return-refund-account')
+      .selectOption({ label: 'F07 Cash (cash)' });
     await page.getByTestId('add-sales-return-line').click();
     await page.getByTestId('sales-return-qty').fill('1');
     await page.getByTestId('sales-return-condition').selectOption('sellable');
@@ -160,11 +165,11 @@ test.describe('F07 P1 sales returns', () => {
     await page.getByTestId('without-invoice-reason').fill('E2E return without invoice');
     await page.getByTestId('without-invoice-value').fill('50.00');
     await page.getByTestId('without-invoice-resolution').selectOption('account_refund');
-    await page.getByTestId('without-invoice-refund-account').selectOption({ label: 'F07 Cash (cash)' });
+    await page
+      .getByTestId('without-invoice-refund-account')
+      .selectOption({ label: 'F07 Cash (cash)' });
     await page.getByTestId('without-invoice-submit').click();
     await expect(page).toHaveURL(/\/app\/returns$/);
     await expect(page.getByTestId('returns-list')).toContainText('Return without invoice');
   });
 });
-
-

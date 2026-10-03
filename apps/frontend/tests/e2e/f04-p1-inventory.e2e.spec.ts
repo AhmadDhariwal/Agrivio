@@ -30,16 +30,17 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     await expect(activationUrl).toBeVisible();
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -99,9 +100,9 @@ test.describe('F04 P1 inventory opening stock vertical slice', () => {
 
     await page.locator('#ag-main').getByRole('link', { name: 'Movements' }).click();
     await expect(page.getByTestId('movements-list')).toBeVisible();
-    await expect(page.getByTestId('movement-row').first()).toContainText(/opening_stock|Opening Stock/i);
+    await expect(page.getByTestId('movement-row').first()).toContainText(
+      /opening_stock|Opening Stock/i,
+    );
     await expect(page.getByTestId('movement-row').first()).toContainText('100.0000');
   });
 });
-
-

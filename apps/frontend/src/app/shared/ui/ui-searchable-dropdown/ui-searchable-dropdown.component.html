@@ -9,10 +9,22 @@
   <select
     tabindex="-1"
     aria-hidden="true"
-    style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; pointer-events: none;"
+    style="
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+      pointer-events: none;
+    "
     [disabled]="isControlDisabled()"
     [attr.data-testid]="effectiveTestId() || null"
+    [attr.aria-label]="ariaLabel() !== 'Select option' ? ariaLabel() : placeholder() || ariaLabel()"
     [attr.aria-required]="effectiveAriaRequired() ? 'true' : null"
+    (focus)="triggerButton.focus()"
     (change)="onNativeSelectChange($event)"
   >
     <option value="">{{ allOptionLabel() || placeholder() }}</option>
@@ -22,15 +34,23 @@
     @for (opt of options(); track opt.value) {
       <option [value]="opt.value" [selected]="opt.value === currentValue()">{{ opt.label }}</option>
       @if (opt.meta && !opt.label.includes('(' + opt.meta + ')')) {
-        <option [value]="opt.value" [selected]="opt.value === currentValue()">{{ opt.label }} ({{ opt.meta }})</option>
+        <option [value]="opt.value" [selected]="opt.value === currentValue()">
+          {{ opt.label }} ({{ opt.meta }})
+        </option>
         @if (opt.meta.toUpperCase() !== opt.meta) {
-          <option [value]="opt.value" [selected]="opt.value === currentValue()">{{ opt.label }} ({{ opt.meta.toUpperCase() }})</option>
+          <option [value]="opt.value" [selected]="opt.value === currentValue()">
+            {{ opt.label }} ({{ opt.meta.toUpperCase() }})
+          </option>
         }
         @if (opt.meta.includes(' · ')) {
           @for (part of opt.meta.split(' · '); track $index) {
-            <option [value]="opt.value" [selected]="opt.value === currentValue()">{{ opt.label }} ({{ part }})</option>
+            <option [value]="opt.value" [selected]="opt.value === currentValue()">
+              {{ opt.label }} ({{ part }})
+            </option>
             @if (part.toUpperCase() !== part) {
-              <option [value]="opt.value" [selected]="opt.value === currentValue()">{{ opt.label }} ({{ part.toUpperCase() }})</option>
+              <option [value]="opt.value" [selected]="opt.value === currentValue()">
+                {{ opt.label }} ({{ part.toUpperCase() }})
+              </option>
             }
           }
         }
@@ -59,7 +79,10 @@
     (click)="toggle($event)"
     (keydown)="onTriggerKeydown($event)"
   >
-    <span class="searchable-dropdown__value" [class.searchable-dropdown__value--placeholder]="isPlaceholder()">
+    <span
+      class="searchable-dropdown__value"
+      [class.searchable-dropdown__value--placeholder]="isPlaceholder()"
+    >
       {{ displayLabel() }}
     </span>
 
@@ -272,7 +295,9 @@
         </button>
       }
 
-      @if (!loading() && visibleOptions().length === 0 && (!allOptionLabel() || !matchesAllOption())) {
+      @if (
+        !loading() && visibleOptions().length === 0 && (!allOptionLabel() || !matchesAllOption())
+      ) {
         <div class="searchable-dropdown__empty">{{ emptyText() }}</div>
       }
     </div>

@@ -30,15 +30,16 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -121,7 +122,9 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await page.getByTestId('sale-date').fill('2026-08-13');
     await page.getByTestId('sale-line-product').selectOption({ label: 'P3 Product' });
     await page.getByTestId('sale-line-quantity').fill('2');
-    await expect(page.getByTestId('sale-line-unit-price')).toHaveValue('100.00', { timeout: 10_000 });
+    await expect(page.getByTestId('sale-line-unit-price')).toHaveValue('100.00', {
+      timeout: 10_000,
+    });
     await page.getByTestId('sale-save').click();
     await expect(page).toHaveURL(/\/app\/sales\/[^/]+(\/edit)?$/);
     await expect(page.getByTestId('sale-post')).toBeVisible();
@@ -149,5 +152,3 @@ test.describe('F06 P3 approvals and sale cancellation', () => {
     await expect(page.getByTestId('sale-posted-details')).toContainText('P3E-');
   });
 });
-
-

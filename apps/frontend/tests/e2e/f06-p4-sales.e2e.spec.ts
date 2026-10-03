@@ -32,15 +32,16 @@ test.describe('F06 P4 printing and cashier POS', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -163,7 +164,9 @@ test.describe('F06 P4 printing and cashier POS', () => {
     await page.getByTestId('sale-fill-cash').click();
     await expect(page.getByTestId('sale-payment-account')).toHaveValue(/.+/);
     await page.getByTestId('sale-post').click();
-    await expect(page.getByTestId('sale-posted-details')).toContainText('P4E-', { timeout: 30_000 });
+    await expect(page.getByTestId('sale-posted-details')).toContainText('P4E-', {
+      timeout: 30_000,
+    });
     await expect(page.getByTestId('sale-posted-banner')).toBeVisible();
 
     await page.getByRole('link', { name: 'Print invoice' }).click();
@@ -198,7 +201,9 @@ test.describe('F06 P4 printing and cashier POS', () => {
     await page.getByTestId('sale-payment-account').selectOption({ label: 'P4 Cash (cash)' });
     await page.getByTestId('sale-payment-amount').fill('50.00');
     await page.getByTestId('sale-post').click();
-    await expect(page.getByTestId('sale-posted-details')).toContainText('P4E-', { timeout: 30_000 });
+    await expect(page.getByTestId('sale-posted-details')).toContainText('P4E-', {
+      timeout: 30_000,
+    });
     await expect(page.getByTestId('sale-posted-details')).toContainText('50.00');
 
     await page.getByTestId('sign-out').click();
@@ -234,8 +239,8 @@ test.describe('F06 P4 printing and cashier POS', () => {
     await expect(page.getByTestId('sale-error')).toContainText(/approval/i);
     await page.getByTestId('sale-credit-limit-reason').fill('Owner approved temporary exceed');
     await page.getByTestId('sale-post').click();
-    await expect(page.getByTestId('sale-posted-details')).toContainText('P4E-', { timeout: 30_000 });
+    await expect(page.getByTestId('sale-posted-details')).toContainText('P4E-', {
+      timeout: 30_000,
+    });
   });
 });
-
-

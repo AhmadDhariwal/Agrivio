@@ -5,7 +5,10 @@ import { expect, test } from '@playwright/test';
 const OWNER_PASSWORD = 'owner-activation-passphrase';
 
 test.describe('F06 P1 sales draft vertical slice', () => {
-  test('draft workflow stays unposted with no invoice or stock effects', async ({ page, request }) => {
+  test('draft workflow stays unposted with no invoice or stock effects', async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(180_000);
     const stamp = Date.now();
     const organizationName = `F06 P1 E2E Org ${stamp}`;
@@ -27,15 +30,16 @@ test.describe('F06 P1 sales draft vertical slice', () => {
     await login(page, superAdmin.email, superAdmin.password);
     await enterPlatformWorkspace(page);
     await page.getByRole('link', { name: 'Organizations' }).click();
+    await page.getByTestId('org-search-input').fill(organizationName);
     const orgRow = page.getByTestId('org-row').filter({ hasText: organizationName });
     await orgRow.getByTestId('approve-org').click();
     await page.getByRole('button', { name: 'Approve organization' }).click();
     const activationUrl = page.getByTestId('activation-url');
     const urlText = (await activationUrl.textContent())?.trim() ?? '';
-    const activationToken =
-      activationTokenFromUrl(urlText);
+    const activationToken = activationTokenFromUrl(urlText);
 
     await page.getByTestId('sign-out').click();
+    await expect(page).toHaveURL(/\/(login|signin)/);
     await page.goto(`/activate?token=${encodeURIComponent(activationToken)}`);
     await page.getByTestId('activation-password-input').fill(OWNER_PASSWORD);
     await page.getByTestId('activation-password-confirm-input').fill(OWNER_PASSWORD);
@@ -116,5 +120,3 @@ test.describe('F06 P1 sales draft vertical slice', () => {
     await expect(page.getByTestId('sales-empty')).toBeVisible();
   });
 });
-
-

@@ -71,15 +71,30 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    max-width: 100%;
   }
 
   @media (max-width: 767px) {
     gap: 10px;
-    &__eyebrow { display: none; }
-    &__title { font-size: 20px; }
-    &__count-pill { font-size: 11px; padding: 2px 8px; }
-    &__lede { display: none; }
+    &__eyebrow {
+      display: none;
+    }
+    &__title {
+      font-size: 20px;
+    }
+    &__count-pill {
+      font-size: 11px;
+      padding: 2px 8px;
+    }
+    &__lede {
+      display: none;
+    }
+
+    &__actions {
+      width: 100%;
+      flex-wrap: wrap;
+    }
   }
 }
 
@@ -472,10 +487,22 @@
   background: #f1f5f9;
   color: #475569;
 
-  &--cash { background: #ecfdf5; color: #047857; }
-  &--bank { background: #eff6ff; color: #1d4ed8; }
-  &--jazzcash { background: #fef2f2; color: #b91c1c; }
-  &--easypaisa { background: #f0fdf4; color: #15803d; }
+  &--cash {
+    background: #ecfdf5;
+    color: #047857;
+  }
+  &--bank {
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+  &--jazzcash {
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+  &--easypaisa {
+    background: #f0fdf4;
+    color: #15803d;
+  }
 }
 
 .action-cell {
