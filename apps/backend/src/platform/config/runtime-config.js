@@ -286,7 +286,7 @@ function loadApiEnv(env = process.env) {
     !isNonEmptyString(host) ||
     !isNonEmptyString(mongodbUri) ||
     !isNonEmptyString(mongodbDbName) ||
-    !isNonEmptyString(mongodbReplicaSet) ||
+    (!isSrv && !isNonEmptyString(mongodbReplicaSet)) ||
     !isNonEmptyString(sessionSecret) ||
     !isNonEmptyString(publicWebBaseUrl)
   ) {
