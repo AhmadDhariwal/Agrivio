@@ -10,9 +10,38 @@ bun.lockb
 # Environment and secrets
 .env
 .env.*
-!.env.example
+.env.example
+*.env
+*.env.local
+.secrets/
 *.pem
 *.key
+*.pfx
+*.p12
+*.cer
+*.crt
+*.csr
+*.priv
+id_rsa*
+id_ed25519*
+*service-account*.json
+*credentials*.json
+client_secret*.json
+
+# Backups and database dumps
+backups/
+*.dump
+*.archive
+*.archive.gz
+*.archive.gz.manifest.json
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Persistent storage and file uploads
+storage/
+uploads/
 
 # Builds and caches
 dist/
@@ -30,8 +59,9 @@ test-results/
 playwright-report/
 playwright/.cache/
 blob-report/
+__screenshots__/
 
-# Logs and OS
+# Logs, runtime outputs, and OS
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
@@ -39,21 +69,24 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 *.log
+*.out
+*.err
+*.pid
+*.seed
+*.pid.lock
 
 # Local toolchain helpers (not part of the repository product tree)
 .tools/
 
-# IDE
+# IDE, AI agents, and local tooling
 .idea/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-
-
+.agents/
+.gemini/
+.claude/
+.cursor/
 
 .nx/migrate-runs
-.angular
-
-__screenshots__/
-
-vitest.config.*.timestamp*
+vitest.config.*.timestamp*

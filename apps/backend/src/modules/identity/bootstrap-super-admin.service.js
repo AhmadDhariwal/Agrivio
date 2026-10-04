@@ -40,6 +40,11 @@ async function bootstrapSuperAdmin(deps, input) {
   const { email, emailNormalized } = assertEmail(input.email);
   const displayName = assertDisplayName(input.displayName);
   const password = input.password;
+  if (typeof password !== 'string' || password.length < 12) {
+    throw validationFailed('Validation failed', [
+      { field: 'password', message: 'password must be at least 12 characters' },
+    ]);
+  }
 
   const existing = await store.findUserByEmailNormalized(emailNormalized);
   if (existing !== null) {
