@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { bootstrapApprovedOwner, enterPlatformWorkspace, signIn } from './f07-p4-support';
 import { API } from './e2e-origins';
 
@@ -90,7 +92,10 @@ async function measureOverflow(page: Page): Promise<{
 async function assertNoBodyOverflow(page: Page, label: string): Promise<void> {
   const { contentOverflow, documentOverflow, offender } = await measureOverflow(page);
   expect(documentOverflow, `${label} document overflow`).toBeLessThanOrEqual(2);
-  expect(contentOverflow, `${label} content overflow (${offender ?? 'unknown'})`).toBeLessThanOrEqual(2);
+  expect(
+    contentOverflow,
+    `${label} content overflow (${offender ?? 'unknown'})`,
+  ).toBeLessThanOrEqual(2);
 }
 
 async function openMobileNavIfNeeded(page: Page): Promise<void> {
@@ -120,12 +125,7 @@ test.describe('R1 responsive acceptance', () => {
       entitlements: { reportsExports: true, imports: true, auditHistory: '90d' },
     });
 
-    const sampleViewports = [
-      VIEWPORTS[0],
-      VIEWPORTS[2],
-      VIEWPORTS[3],
-      VIEWPORTS[5],
-    ];
+    const sampleViewports = [VIEWPORTS[0], VIEWPORTS[2], VIEWPORTS[3], VIEWPORTS[5]];
 
     for (const viewport of sampleViewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -163,10 +163,9 @@ test.describe('R1 responsive acceptance', () => {
       await page.goto(route.path);
       await page.waitForTimeout(120);
       const { contentOverflow, documentOverflow, offender } = await measureOverflow(page);
-      expect(
-        documentOverflow,
-        `${route.module} document overflow at 390x844`,
-      ).toBeLessThanOrEqual(2);
+      expect(documentOverflow, `${route.module} document overflow at 390x844`).toBeLessThanOrEqual(
+        2,
+      );
       expect(
         contentOverflow,
         `${route.module} content overflow at 390x844 (${offender ?? 'unknown'})`,
@@ -193,6 +192,9 @@ test.describe('R1 responsive acceptance', () => {
       { path: '/app/dashboard', name: 'dashboard' },
     ];
 
+    const screenshotDirectory = join(test.info().project.outputDir, 'responsive');
+    await mkdir(screenshotDirectory, { recursive: true });
+
     for (const viewport of [
       { name: '1440x900', width: 1440, height: 900 },
       { name: '1366x768', width: 1366, height: 768 },
@@ -204,7 +206,7 @@ test.describe('R1 responsive acceptance', () => {
         await page.goto(shot.path);
         await expect(page.getByTestId('authenticated-shell')).toBeVisible();
         await page.screenshot({
-          path: `/opt/cursor/artifacts/responsive/${shot.name}-${viewport.name}.png`,
+          path: join(screenshotDirectory, `${shot.name}-${viewport.name}.png`),
           fullPage: false,
         });
       }

@@ -11,6 +11,10 @@ function createErrorHandlerMiddleware(nodeEnv, logger) {
     const requestId = resolveRequestIdFromRequest(req, res);
     const mapped = mapErrorToHttpResponse(error, nodeEnv);
 
+    if (error && typeof error.retryAfter === 'number' && error.retryAfter > 0) {
+      res.setHeader('Retry-After', String(error.retryAfter));
+    }
+
     logger('error', 'request failed', {
       requestId,
       errorCode: mapped.body.code,

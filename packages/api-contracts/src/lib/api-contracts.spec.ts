@@ -72,6 +72,7 @@ describe('api-contracts transport surface', () => {
     expect(ApiTransportErrorCode.AssignmentScopeDenied).toBe('ASSIGNMENT_SCOPE_DENIED');
     expect(ApiTransportErrorCode.RoleHierarchyDenied).toBe('ROLE_HIERARCHY_DENIED');
     expect(ApiTransportErrorCode.LastOwnerProtected).toBe('LAST_OWNER_PROTECTED');
+    expect(ApiTransportErrorCode.TooManyRequests).toBe('TOO_MANY_REQUESTS');
   });
 
   it('builds frozen success and error envelopes', () => {

@@ -10,7 +10,7 @@ bun.lockb
 # Environment and secrets
 .env
 .env.*
-.env.example
+!.env.example
 *.env
 *.env.local
 .secrets/
@@ -89,4 +89,4 @@ Thumbs.db
 .cursor/
 
 .nx/migrate-runs
-vitest.config.*.timestamp*
+vitest.config.*.timestamp*

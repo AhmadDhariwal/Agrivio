@@ -222,3 +222,82 @@ test('leaves non-API routes outside the proxy and limits Pages invocations to /a
   );
   assert.deepEqual(routes, { version: 1, include: ['/api/*'], exclude: [] });
 });
+
+test('emits frame protection and security headers on proxy and error responses', async () => {
+  const errorRes = await onRequest({
+    env,
+    request: new Request('https://agrivio-staging-web.pages.dev/api/v1/auth/login', {
+      method: 'POST',
+      headers: { Origin: 'https://attacker.example' },
+    }),
+  });
+  assert.equal(errorRes.status, 403);
+  assert.equal(errorRes.headers.get('X-Frame-Options'), 'DENY');
+  assert.equal(
+    errorRes.headers.get('Strict-Transport-Security'),
+    'max-age=31536000; includeSubDomains',
+  );
+  assert.equal(errorRes.headers.get('X-Content-Type-Options'), 'nosniff');
+  assert.equal(errorRes.headers.get('Referrer-Policy'), 'strict-origin-when-cross-origin');
+  assert.equal(errorRes.headers.get('Content-Security-Policy'), "default-src 'none'; frame-ancestors 'none'");
+
+  const proxyRes = await withFetchMock(
+    async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    () =>
+      onRequest({
+        env,
+        request: new Request('https://agrivio-staging-web.pages.dev/api/v1/session'),
+      }),
+  );
+  assert.equal(proxyRes.status, 200);
+  assert.equal(proxyRes.headers.get('X-Frame-Options'), 'DENY');
+  assert.equal(
+    proxyRes.headers.get('Strict-Transport-Security'),
+    'max-age=31536000; includeSubDomains',
+  );
+  assert.equal(proxyRes.headers.get('X-Content-Type-Options'), 'nosniff');
+  assert.equal(proxyRes.headers.get('Referrer-Policy'), 'strict-origin-when-cross-origin');
+  assert.equal(proxyRes.headers.get('Content-Security-Policy'), "default-src 'none'; frame-ancestors 'none'");
+});
+
+test('forwards authentic client IP from cf-connecting-ip to upstream as X-Forwarded-For', async () => {
+  let forwardedInit;
+  await withFetchMock(
+    async (_url, init) => {
+      forwardedInit = init;
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    },
+    () =>
+      onRequest({
+        env,
+        request: new Request('https://agrivio-staging-web.pages.dev/api/v1/session', {
+          headers: {
+            'cf-connecting-ip': '198.51.100.77',
+            'x-forwarded-for': '1.1.1.1', // forged header should be replaced by trusted cf-connecting-ip
+          },
+        }),
+      }),
+  );
+
+  assert.equal(forwardedInit.headers.get('X-Forwarded-For'), '198.51.100.77');
+});
+
+test('does not trust X-Forwarded-For when the provider-controlled client IP is absent', async () => {
+  let forwardedInit;
+  await withFetchMock(
+    async (_url, init) => {
+      forwardedInit = init;
+      return Response.json({ ok: true });
+    },
+    () =>
+      onRequest({
+        env,
+        request: new Request('https://agrivio-staging-web.pages.dev/api/v1/health', {
+          headers: { 'x-forwarded-for': '1.1.1.1' },
+        }),
+      }),
+  );
+
+  assert.equal(forwardedInit.headers.has('X-Forwarded-For'), false);
+});
+

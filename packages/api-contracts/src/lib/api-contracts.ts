@@ -272,6 +272,7 @@ export const ApiTransportErrorCode = {
   TenantAccessDenied: 'TENANT_ACCESS_DENIED',
   LastOwnerProtected: 'LAST_OWNER_PROTECTED',
   SubscriptionAccessDenied: 'SUBSCRIPTION_ACCESS_DENIED',
+  TooManyRequests: 'TOO_MANY_REQUESTS',
   InternalError: 'INTERNAL_ERROR',
 } as const;
 

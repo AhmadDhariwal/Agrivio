@@ -12,6 +12,11 @@ const {
   createOnboardingController,
   createPlatformOrganizationController,
 } = require('../controllers/onboarding.controller');
+const {
+  createOnboardingRateLimiter,
+  createOnboardingRateLimiterMiddleware,
+  resolveOnboardingRateLimiterOptions,
+} = require('../onboarding.rate-limit');
 
 function registerOnboardingRoutes(deps) {
   const router = Router();
@@ -20,10 +25,19 @@ function registerOnboardingRoutes(deps) {
   const platformActor = createPlatformActorMiddleware(deps.config);
   const requireCsrf = deps.requireCsrf ?? ((_req, _res, next) => next());
   const optionalAuth = deps.optionalAuth ?? ((_req, _res, next) => next());
+  const onboardingRateLimiter =
+    deps.onboardingRateLimiter ??
+    createOnboardingRateLimiter(resolveOnboardingRateLimiterOptions(deps.config?.nodeEnv));
+  const rateLimitActivation = createOnboardingRateLimiterMiddleware(onboardingRateLimiter);
 
-  router.post(API_ORGANIZATION_ACTIVATION_REQUESTS_PATH, requireCsrf, (req, res, next) => {
-    void publicController.submitActivationRequest(req, res, next);
-  });
+  router.post(
+    API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
+    rateLimitActivation,
+    requireCsrf,
+    (req, res, next) => {
+      void publicController.submitActivationRequest(req, res, next);
+    },
+  );
 
   // Activation lives under the auth module routes (`/api/v1/auth/activate`).
 

@@ -18,6 +18,7 @@ import { createAuthModule } from '../identity/auth.module';
 import { createBridgedAuthStore } from '../identity/auth.bridge-store';
 import { hashToken } from '../identity/crypto-tokens';
 import onboardingValidationModule from './onboarding.validation';
+import { createOnboardingRateLimiter } from './onboarding.rate-limit';
 
 const { parseActivationBody } = onboardingValidationModule;
 
@@ -495,6 +496,71 @@ describe('F02 Phase 1 organization onboarding', () => {
       await close(server);
     }
   });
+
+  it('throttles organization activation requests with HTTP 429 when rate limit is exceeded', async () => {
+    const rateLimiter = createOnboardingRateLimiter({
+      maxAttempts: 2,
+      windowMs: 60_000,
+      now: () => 1_000,
+    });
+    const { server, baseUrl, jar } = await boot({ onboardingRateLimiter: rateLimiter });
+
+    try {
+      const csrf1 = await issueCsrf(baseUrl, jar);
+      const res1 = await fetchJson(
+        baseUrl,
+        'POST',
+        API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
+        {
+          organizationName: 'Org One',
+          ownerEmail: 'org1@example.com',
+          ownerDisplayName: 'Owner One',
+        },
+        { [API_CSRF_HEADER]: csrf1 },
+        jar,
+      );
+      expect(res1.status).toBe(201);
+
+      const csrf2 = await issueCsrf(baseUrl, jar);
+      const res2 = await fetchJson(
+        baseUrl,
+        'POST',
+        API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
+        {
+          organizationName: 'Org Two',
+          ownerEmail: 'org2@example.com',
+          ownerDisplayName: 'Owner Two',
+        },
+        { [API_CSRF_HEADER]: csrf2 },
+        jar,
+      );
+      expect(res2.status).toBe(201);
+
+      // Third request from same IP is throttled, even with spoofed X-Forwarded-For
+      const csrf3 = await issueCsrf(baseUrl, jar);
+      const res3 = await fetchJson(
+        baseUrl,
+        'POST',
+        API_ORGANIZATION_ACTIVATION_REQUESTS_PATH,
+        {
+          organizationName: 'Org Three',
+          ownerEmail: 'org3@example.com',
+          ownerDisplayName: 'Owner Three',
+        },
+        {
+          [API_CSRF_HEADER]: csrf3,
+          'x-forwarded-for': '203.0.113.99',
+        },
+        jar,
+      );
+      expect(res3.status).toBe(429);
+      expect(res3.body.error.code).toBe('TOO_MANY_REQUESTS');
+      expect(res3.body.error.message).toContain('Too many organization activation requests');
+      expect(res3.headers.get('retry-after')).toBe('60');
+    } finally {
+      await close(server);
+    }
+  });
 });
 
 async function boot(options = {}) {
@@ -503,6 +569,9 @@ async function boot(options = {}) {
     config,
     persistence: 'memory',
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.onboardingRateLimiter === undefined
+      ? {}
+      : { onboardingRateLimiter: options.onboardingRateLimiter }),
   });
   const auth = createAuthModule({
     config,
@@ -586,5 +655,5 @@ async function fetchJson(baseUrl, method, path, body, headers = {}, jar) {
   });
   jar?.absorb(response.headers);
   const json = await response.json();
-  return { status: response.status, body: json };
+  return { status: response.status, body: json, headers: response.headers };
 }

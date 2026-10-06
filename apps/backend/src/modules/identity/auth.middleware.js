@@ -7,11 +7,10 @@ const { isAllowedBrowserOrigin } = require('./cors-origins');
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 function clientKey(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim() !== '') {
-    return forwarded.split(',')[0]?.trim() || 'unknown';
+  if (typeof req.ip === 'string' && req.ip.trim() !== '') {
+    return req.ip.trim();
   }
-  return req.socket.remoteAddress ?? 'unknown';
+  return req.socket?.remoteAddress ?? 'unknown';
 }
 
 /**

@@ -10,6 +10,9 @@ const {
 } = require('./platform/config/runtime-config');
 const { loadLocalDevelopmentEnv } = require('./platform/config/load-local-env');
 const { createStructuredLogger } = require('./platform/logging/structured-logger');
+const {
+  ensureRateLimitBucketIndexes,
+} = require('./platform/http/persistence/rate-limit-bucket.model');
 
 loadLocalDevelopmentEnv();
 
@@ -41,6 +44,9 @@ async function start() {
     : createMongooseDatabaseLifecycle();
 
   await database.connect(env);
+  if (!env.skipMongo) {
+    await ensureRateLimitBucketIndexes();
+  }
 
   const app = createApp({ config: env, database, logger });
   server = app.listen(env.port, env.host, () => {
@@ -63,9 +69,7 @@ async function start() {
 start().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   const code =
-    error && typeof error === 'object' && typeof error.code === 'string'
-      ? error.code
-      : undefined;
+    error && typeof error === 'object' && typeof error.code === 'string' ? error.code : undefined;
   if (code) {
     console.error(redactSecrets(`[agrivio] Mongo startup failed (${code})`));
   }

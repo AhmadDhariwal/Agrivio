@@ -390,10 +390,10 @@ function createAuthService(deps) {
     },
 
     async login(body, transport) {
-      rateLimiter.assertAllowed(`login:${transport.clientKey}`);
+      await rateLimiter.assertAllowed(`login:${transport.clientKey}`);
       await this.assertCsrf(transport.sessionToken, transport.csrfToken);
       const input = parseLoginBody(body);
-      rateLimiter.assertAllowed(`login:${transport.clientKey}:${input.email}`);
+      await rateLimiter.assertAllowed(`login:${transport.clientKey}:${input.email}`);
 
       const user = await store.findUserByEmailNormalized(input.email);
       if (user === null || typeof user['passwordHash'] !== 'string') {
@@ -431,7 +431,7 @@ function createAuthService(deps) {
           : { organizationId: String(context['organizationId']) }),
       });
 
-      rateLimiter.reset(`login:${transport.clientKey}:${input.email}`);
+      await rateLimiter.reset(`login:${transport.clientKey}:${input.email}`);
 
       return {
         ...created,
@@ -550,9 +550,9 @@ function createAuthService(deps) {
     },
 
     async requestPasswordReset(body, transport) {
-      rateLimiter.assertAllowed(`reset-request:${transport.clientKey}`);
+      await rateLimiter.assertAllowed(`reset-request:${transport.clientKey}`);
       const input = parsePasswordResetRequestBody(body);
-      rateLimiter.assertAllowed(`reset-request:${transport.clientKey}:${input.email}`);
+      await rateLimiter.assertAllowed(`reset-request:${transport.clientKey}:${input.email}`);
 
       const user = await store.findUserByEmailNormalized(input.email);
       let issuedToken;
@@ -572,9 +572,14 @@ function createAuthService(deps) {
               token: token.token,
             });
             if (mailResult && mailResult.skipped) {
-              logEvent(logger, 'debug', 'Password reset email skipped: AGRIVIO_SMTP_HOST is not set', {
-                event: 'smtp_not_configured',
-              });
+              logEvent(
+                logger,
+                'debug',
+                'Password reset email skipped: AGRIVIO_SMTP_HOST is not set',
+                {
+                  event: 'smtp_not_configured',
+                },
+              );
             }
           } catch (mailErr) {
             // Generic response is still returned; delivery failure is not exposed to callers.
@@ -606,7 +611,7 @@ function createAuthService(deps) {
     },
 
     async confirmPasswordReset(body, transport) {
-      rateLimiter.assertAllowed(`reset-confirm:${transport.clientKey}`);
+      await rateLimiter.assertAllowed(`reset-confirm:${transport.clientKey}`);
       await this.assertCsrf(transport.sessionToken, transport.csrfToken);
       const input = parsePasswordResetConfirmBody(body);
       const at = now();
