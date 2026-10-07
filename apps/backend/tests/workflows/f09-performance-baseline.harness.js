@@ -61,6 +61,17 @@ const ACCEPTED_PLANNING_THRESHOLDS_MS = {
 
 const PASSWORD = 'a-strong-passphrase';
 
+function resolvePartyId(response, label) {
+  if (response.status !== 200 || !Array.isArray(response.body?.data)) {
+    throw new Error(`${label} list must return HTTP 200 with a data array`);
+  }
+  const [party] = response.body.data;
+  if (typeof party?.id !== 'string' || party.id === '') {
+    throw new Error(`${label} list must contain a seeded party with an id`);
+  }
+  return party.id;
+}
+
 function createCookieJar() {
   const cookies = new Map();
   let frozen = false;
@@ -557,8 +568,8 @@ async function runF09PerformanceBaseline() {
 
     const listedCustomers = await fetchJson(baseUrl, 'GET', API_CUSTOMERS_PATH, undefined, {}, jar);
     const listedSuppliers = await fetchJson(baseUrl, 'GET', API_SUPPLIERS_PATH, undefined, {}, jar);
-    const customerId = listedCustomers.body.data.items[0].id;
-    const supplierId = listedSuppliers.body.data.items[0].id;
+    const customerId = resolvePartyId(listedCustomers, 'customers');
+    const supplierId = resolvePartyId(listedSuppliers, 'suppliers');
     const productIds = productDocs.slice(0, Math.max(sizes.openingStock, 8)).map((doc) => String(doc._id));
     const warehouseId = warehouses[0].body.data.id;
     const branchId = branchA.body.data.id;

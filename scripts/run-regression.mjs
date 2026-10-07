@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 const release = process.argv.includes('--release');
 
@@ -36,7 +36,10 @@ async function assertReleasePortsFree() {
 }
 
 function runNpm(name, args) {
-  const result = spawnSync('npm', args, { stdio: 'inherit', shell: true });
+  const npmCli = process.env.npm_execpath ?? join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  const result = process.platform === 'win32'
+    ? spawnSync(process.execPath, [npmCli, ...args], { stdio: 'inherit' })
+    : spawnSync('npm', args, { stdio: 'inherit' });
   return { name, status: result.status ?? 1 };
 }
 
