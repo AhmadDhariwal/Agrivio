@@ -5,6 +5,10 @@ const {
 } = require('./platform/errors/error-handler.middleware');
 const { registerHealthRoutes } = require('./platform/health/health.routes');
 const { createRequestIdMiddleware } = require('./platform/http/request-id.middleware');
+const {
+  createSecurityHeadersMiddleware,
+} = require('./platform/http/security-headers.middleware');
+const { resolveTrustProxy } = require('./platform/http/trust-proxy');
 const { createStructuredLogger } = require('./platform/logging/structured-logger');
 const { createOnboardingModule } = require('./modules/onboarding/onboarding.module');
 const { registerOnboardingRoutes } = require('./modules/onboarding/routes/onboarding.routes');
@@ -660,11 +664,14 @@ function createApp(options) {
     },
   });
 
+  const onboardingRateLimiter =
+    options.onboardingRateLimiter ?? onboardingCore.onboardingRateLimiter;
   const onboardingRoutes = registerOnboardingRoutes({
     config,
     onboardingService: onboardingCore.onboardingService,
     requireCsrf: auth.middlewares.requireCsrf,
     optionalAuth: auth.middlewares.optionalAuth,
+    ...(onboardingRateLimiter === undefined ? {} : { onboardingRateLimiter }),
   });
 
   const organizationRoutes = registerOrganizationRoutes({
@@ -872,7 +879,13 @@ function createApp(options) {
   const app = express();
   app.disable('x-powered-by');
 
+  const trustProxy = options.trustProxy ?? resolveTrustProxy(config.nodeEnv);
+  if (trustProxy !== false) {
+    app.set('trust proxy', trustProxy);
+  }
+
   app.use(createRequestIdMiddleware());
+  app.use(createSecurityHeadersMiddleware(config));
   app.use(auth.middlewares.cors);
   app.use(express.json({ limit: '1mb' }));
   app.use(auth.middlewares.originGuard);

@@ -103,6 +103,23 @@ function subscriptionAccessDenied(message = 'Subscription access is not availabl
   return new AppError(ApiTransportErrorCode.SubscriptionAccessDenied, message, 403, details);
 }
 
+function tooManyRequests(
+  message = 'Too many requests. Try again later.',
+  retryAfterSeconds,
+  details,
+) {
+  const err = new AppError(
+    ApiTransportErrorCode.TooManyRequests ?? 'TOO_MANY_REQUESTS',
+    message,
+    429,
+    details,
+  );
+  if (typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0) {
+    err.retryAfter = retryAfterSeconds;
+  }
+  return err;
+}
+
 module.exports = {
   validationFailed,
   notFound,
@@ -124,5 +141,6 @@ module.exports = {
   tenantAccessDenied,
   lastOwnerProtected,
   subscriptionAccessDenied,
+  tooManyRequests,
   AppError,
 };

@@ -43,6 +43,8 @@ mongorestore --version
 
 If either tool is missing, REL-G08 / REL-G09 are **BLOCKED**. Do not substitute JSON snapshots or in-memory catalog copies.
 
+Missing tools are a host prerequisite, not an application defect (smoke finding ISS-02). Install the MongoDB Database Tools package for the host OS; MongoDB Server alone does not supply these commands. On Windows, add the extracted/installed Tools `bin` directory to `PATH` and open a new terminal, or set `AGRIVIO_MONGODUMP_PATH` and `AGRIVIO_MONGORESTORE_PATH` to the full executable paths. On Linux, install/extract the Tools package and expose its `bin` directory on `PATH`, or use those same overrides. Verify both version commands above before rerunning `npm run test:ops:rehearsal`.
+
 ## Safety checks
 
 Before every dump, restore, or drop:

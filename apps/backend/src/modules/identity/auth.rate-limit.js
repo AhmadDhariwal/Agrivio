@@ -1,7 +1,11 @@
-const { forbidden } = require('../../platform/errors/app-error');
+const { tooManyRequests } = require('../../platform/errors/app-error');
+const {
+  createBoundedMemoryRateLimitStore,
+  createMongooseRateLimitStore,
+  createSharedRateLimiter,
+} = require('../../platform/http/shared-rate-limiter');
 
 /**
- * Simple progressive in-memory throttle for auth endpoints.
  * Coded default is 20 attempts / 15 minutes. A raised ceiling is applied only
  * when the caller passes options (auth.service does that solely for nodeEnv === 'test').
  */
@@ -12,27 +16,20 @@ function resolveAuthRateLimiterOptions(nodeEnv) {
 function createAuthRateLimiter(options = {}) {
   const windowMs = options.windowMs ?? 15 * 60 * 1000;
   const maxAttempts = options.maxAttempts ?? 20;
-  const now = options.now ?? (() => Date.now());
-  const buckets = new Map();
+  const store =
+    options.store ??
+    (options.persistence === 'mongoose'
+      ? createMongooseRateLimitStore({ namespace: 'auth' })
+      : createBoundedMemoryRateLimitStore());
 
-  return {
-    assertAllowed(key) {
-      const current = now();
-      const existing = buckets.get(key);
-      if (existing === undefined || existing.resetAt <= current) {
-        buckets.set(key, { count: 1, resetAt: current + windowMs });
-        return;
-      }
-      if (existing.count >= maxAttempts) {
-        throw forbidden('Too many authentication attempts. Try again later.');
-      }
-      existing.count += 1;
-    },
-
-    reset(key) {
-      buckets.delete(key);
-    },
-  };
+  return createSharedRateLimiter({
+    windowMs,
+    maxAttempts,
+    now: options.now,
+    store,
+    createLimitError: (retryAfterSeconds) =>
+      tooManyRequests('Too many authentication attempts. Try again later.', retryAfterSeconds),
+  });
 }
 
 module.exports = {

@@ -18,6 +18,7 @@ const {
 } = require('./permission.middleware');
 
 const { createNavigationPreferencesService } = require('./navigation-preferences.service');
+const { createAuthRateLimiter, resolveAuthRateLimiterOptions } = require('./auth.rate-limit');
 
 function createAuthModule(options) {
   const persistence = options.persistence ?? 'memory';
@@ -30,10 +31,16 @@ function createAuthModule(options) {
     nodeEnv: options.config.nodeEnv,
     publicWebBaseUrl: options.config.publicWebBaseUrl,
     mailTransport:
-      options.mailTransport ??
-      require('./smtp-mailer').createSmtpMailTransport(options.config),
+      options.mailTransport ?? require('./smtp-mailer').createSmtpMailTransport(options.config),
     ...(options.logger === undefined ? {} : { logger: options.logger }),
     ...(options.now === undefined ? {} : { now: options.now }),
+    rateLimiter:
+      options.rateLimiter ??
+      createAuthRateLimiter({
+        ...resolveAuthRateLimiterOptions(options.config.nodeEnv),
+        persistence,
+        ...(options.now === undefined ? {} : { now: () => options.now().getTime() }),
+      }),
     ...(options.resolveSubscriptionAccessState === undefined
       ? {}
       : { resolveSubscriptionAccessState: options.resolveSubscriptionAccessState }),

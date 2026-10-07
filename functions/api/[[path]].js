@@ -74,6 +74,12 @@ function copyRequestHeaders(requestHeaders) {
     }
     headers.append(name, value);
   }
+
+  const clientIp = requestHeaders.get('cf-connecting-ip');
+  if (clientIp) {
+    headers.set('X-Forwarded-For', clientIp);
+  }
+
   return headers;
 }
 
@@ -105,6 +111,27 @@ function copyResponseHeaders(upstreamHeaders) {
   headers.set('Cache-Control', 'private, no-store');
   headers.set('CDN-Cache-Control', 'no-store');
   headers.set('Cloudflare-CDN-Cache-Control', 'no-store');
+  if (!headers.has('Strict-Transport-Security')) {
+    headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  if (!headers.has('X-Content-Type-Options')) {
+    headers.set('X-Content-Type-Options', 'nosniff');
+  }
+  if (!headers.has('X-Frame-Options')) {
+    headers.set('X-Frame-Options', 'DENY');
+  }
+  if (!headers.has('Referrer-Policy')) {
+    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  }
+  if (!headers.has('Permissions-Policy')) {
+    headers.set(
+      'Permissions-Policy',
+      'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+    );
+  }
+  if (!headers.has('Content-Security-Policy')) {
+    headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+  }
   return headers;
 }
 
@@ -114,6 +141,13 @@ function errorResponse(status, message, extraHeaders = {}) {
     'CDN-Cache-Control': 'no-store',
     'Cloudflare-CDN-Cache-Control': 'no-store',
     'Content-Type': 'application/json; charset=utf-8',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy':
+      'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
     ...extraHeaders,
   });
   return new Response(JSON.stringify({ error: { message } }), { status, headers });
