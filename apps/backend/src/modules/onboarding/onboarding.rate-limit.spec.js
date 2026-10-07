@@ -29,11 +29,11 @@ describe('onboarding.rate-limit', () => {
     }
 
     // Different IP is unaffected
-    await expect(limiter.assertAllowed('onboarding:10.0.0.1')).resolves.toBeUndefined();
+    await limiter.assertAllowed('onboarding:10.0.0.1');
 
     // After window expires, bucket resets
     now += 60_001;
-    await expect(limiter.assertAllowed('onboarding:192.168.1.1')).resolves.toBeUndefined();
+    await limiter.assertAllowed('onboarding:192.168.1.1');
   });
 
   it('reset() clears bucket immediately', async () => {
@@ -44,12 +44,15 @@ describe('onboarding.rate-limit', () => {
     });
 
     await limiter.assertAllowed('onboarding:1.2.3.4');
-    await expect(limiter.assertAllowed('onboarding:1.2.3.4')).rejects.toMatchObject({
-      statusCode: 429,
-    });
+    try {
+      await limiter.assertAllowed('onboarding:1.2.3.4');
+      expect.unreachable('should have thrown 429');
+    } catch (err) {
+      expect(err.statusCode).toBe(429);
+    }
 
     await limiter.reset('onboarding:1.2.3.4');
-    await expect(limiter.assertAllowed('onboarding:1.2.3.4')).resolves.toBeUndefined();
+    await limiter.assertAllowed('onboarding:1.2.3.4');
   });
 
   it('middleware extracts client IP from req.ip and calls next() or next(err)', async () => {

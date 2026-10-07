@@ -76,9 +76,7 @@ describe('auth rate-limit isolation', () => {
         header: () => undefined,
       };
       transportMiddleware(req, {}, () => undefined);
-      await expect(
-        limiter.assertAllowed(`login:${req.authTransport.clientKey}`),
-      ).resolves.toBeUndefined();
+      await limiter.assertAllowed(`login:${req.authTransport.clientKey}`);
     }
 
     // 4th request from same real IP but yet another spoofed header is blocked with 429

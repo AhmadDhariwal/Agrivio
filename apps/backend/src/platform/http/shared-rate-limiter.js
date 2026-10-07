@@ -14,7 +14,7 @@ function createBoundedMemoryRateLimitStore(options = {}) {
   }
 
   return {
-    async increment(key, current, resetAt, maximumCount) {
+    increment(key, current, resetAt, maximumCount) {
       const currentMs = current.getTime();
       const existing = buckets.get(key);
       if (existing !== undefined && existing.resetAt > currentMs) {
@@ -36,7 +36,7 @@ function createBoundedMemoryRateLimitStore(options = {}) {
       return { count: 1, resetAt };
     },
 
-    async reset(key) {
+    reset(key) {
       buckets.delete(key);
     },
   };
@@ -97,27 +97,37 @@ function createSharedRateLimiter(options) {
   const now = options.now ?? (() => Date.now());
   const store = options.store;
 
+  function evaluateBucket(bucket, currentMs) {
+    if (bucket.count > maxAttempts) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((new Date(bucket.resetAt).getTime() - currentMs) / 1000),
+      );
+      throw options.createLimitError(retryAfterSeconds);
+    }
+  }
+
   return {
-    async assertAllowed(key) {
+    assertAllowed(key) {
       const currentMs = now();
       const current = new Date(currentMs);
-      const bucket = await store.increment(
+      const res = store.increment(
         key,
         current,
         new Date(currentMs + windowMs),
         maxAttempts + 1,
       );
-      if (bucket.count > maxAttempts) {
-        const retryAfterSeconds = Math.max(
-          1,
-          Math.ceil((new Date(bucket.resetAt).getTime() - currentMs) / 1000),
-        );
-        throw options.createLimitError(retryAfterSeconds);
+      if (res && typeof res.then === 'function') {
+        return res.then((bucket) => evaluateBucket(bucket, currentMs));
       }
+      evaluateBucket(res, currentMs);
     },
 
-    async reset(key) {
-      await store.reset(key);
+    reset(key) {
+      const res = store.reset(key);
+      if (res && typeof res.then === 'function') {
+        return res;
+      }
     },
   };
 }

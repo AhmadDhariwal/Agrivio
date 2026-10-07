@@ -37,7 +37,9 @@ function createOnboardingRateLimiterMiddleware(rateLimiter) {
       typeof req.ip === 'string' && req.ip.trim() !== ''
         ? req.ip.trim()
         : (req.socket?.remoteAddress ?? 'unknown');
-    void rateLimiter.assertAllowed(`onboarding:${clientIp}`).then(() => next(), next);
+    Promise.resolve()
+      .then(() => rateLimiter.assertAllowed(`onboarding:${clientIp}`))
+      .then(() => next(), next);
   };
 }
 
