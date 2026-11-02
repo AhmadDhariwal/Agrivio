@@ -139,3 +139,11 @@ The intermittent 429's response/event evidence remains outstanding: the inspecte
 does not call the auth/onboarding limiter or its Mongo bucket store. Do not treat that 429's
 origin or the hosting recovery as a completed production fix without corresponding provider
 evidence. Deploying the frontend correction remains an operator action.
+
+### E2E routing follow-up
+
+Aligned `auth-routing.e2e.spec.ts` with the non-blocking Sign In entry: full-document navigation
+to `/signin` or legacy `/login` shows the form without session discovery, including when a valid
+cookie exists. The test still verifies restoration from `/`, protected-page refresh, a second tab,
+and logout propagation between authenticated tabs. Added a separate unavailable-session-endpoint
+check for direct entry, legacy entry, and refresh. No application behavior changes in this follow-up.
