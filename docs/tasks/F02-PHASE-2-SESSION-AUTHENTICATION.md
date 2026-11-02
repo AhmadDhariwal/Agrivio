@@ -108,3 +108,34 @@ directly, while logout, expiry, and secret-free cross-tab revalidation remain un
 During login, the email and password controls are disabled without resetting or mutating their
 values. Duplicate submits are ignored; failure re-enables the controls and preserves the submitted
 values for correction, while success navigates without a cleared/invalid form flash.
+
+## Production Sign In regression (2026-11-02)
+
+Restored the intended `/signin` wiring to the existing `signInGuard`; it had regressed to
+`publicOnlyGuard`, which waits for session discovery and cancels navigation on non-401 errors.
+Only this route changes. An established authenticated tab retains its normal redirect; a fresh
+Sign In entry does not probe the session. Protected routes and all other auth flows are unchanged.
+
+Focused regression coverage renders the real Sign In form with pending discovery and after
+401/429/500/502/network/timeout results, and verifies the redirect after successful discovery.
+Backend checks cover login/session/logout and session reads while the auth limiter store is
+exhausted or unavailable. Proxy checks cover upstream statuses, connection failure, and client-IP
+forwarding; production/direct trusted-proxy tests cover distinct clients and spoofed headers.
+No backend/proxy runtime, limit, or persisted-model changes are included.
+
+Validation passed: focused Angular guard/routing/store/login/logout suites (5 files, 27 tests);
+backend session/store-isolation and login/session/logout checks (3 tests), auth limiter checks
+(4 tests), and trusted-proxy checks (8 tests); `npm run test:pages-proxy` (11 tests);
+`nx run-many -t build -p frontend,backend --parallel=2`; and `git diff --check`.
+The Mongo limiter failure is simulated at the store boundary, not a live production-database test.
+
+Production investigation: a Pages session response carried Render's HTML 502 and
+`x-render-routing: no-deploy`, rather than the proxy's JSON connection-error response. The supplied
+runtime log records successful startup against MongoDB, normal 401 responses, then SIGTERM about
+15 minutes after the last recorded request. A direct production request timed out at 45 seconds;
+subsequent direct and proxied checks returned JSON 401 in about 0.45 and 0.29 seconds. Idle
+spin-down/wake-up is consistent with this evidence but its hosting event is not yet confirmed.
+The intermittent 429's response/event evidence remains outstanding: the inspected session path
+does not call the auth/onboarding limiter or its Mongo bucket store. Do not treat that 429's
+origin or the hosting recovery as a completed production fix without corresponding provider
+evidence. Deploying the frontend correction remains an operator action.
