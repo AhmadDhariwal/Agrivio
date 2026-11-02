@@ -22,7 +22,7 @@ Central navigation for Agrivio documentation.
 * F01 Phase 2 complete (`R1-F01-006`–`R1-F01-011`) — see [tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md](tasks/F01-PHASE-2-TRANSACTIONAL-PLATFORM.md); **F01 stage exit satisfied** (unit-level)
 * Architecture-boundary tests runnable via `npm run test:architecture` (replaces F00 placeholder)
 * F02 Phase 1 complete (`R1-F02-005`, `R1-F02-006`) — see [tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md](tasks/F02-PHASE-1-ORGANIZATION-ONBOARDING.md)
-* F02 Phase 2 complete (`R1-F02-003`, `R1-F02-004`) — see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md)
+* F02 Phase 2 complete (`R1-F02-003`, `R1-F02-004`) — see [tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md](tasks/F02-PHASE-2-SESSION-AUTHENTICATION.md); production Sign In guard regression and E2E entry expectations corrected (2026-11-02), hosting/429 investigation remains open
 * F02 Phase 3 complete (`R1-F02-007`, `R1-F02-008`) — see [tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md](tasks/F02-PHASE-3-CONTEXT-PERMISSIONS.md)
 * F02 Phase 4 complete (`R1-F02-001`, `R1-F02-002`, `R1-F02-009`) — see [tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md](tasks/F02-PHASE-4-ACCESS-ASSIGNMENTS.md)
 * F02 Phase 5 complete (`R1-F02-010`, `R1-F02-011`, `R1-F02-012`) — see [tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md](tasks/F02-PHASE-5-SUBSCRIPTIONS-BILLING.md)

@@ -301,3 +301,34 @@ test('does not trust X-Forwarded-For when the provider-controlled client IP is a
   assert.equal(forwardedInit.headers.has('X-Forwarded-For'), false);
 });
 
+test('preserves session responses and distinguishes upstream HTTP failures from connection failures', async () => {
+  for (const status of [200, 401, 429, 500, 502]) {
+    const body =
+      status === 502 ? '<title>502</title>Render Bad Gateway' : JSON.stringify({ status });
+    const response = await withFetchMock(
+      async () => new Response(body, { status, headers: { 'Retry-After': '60' } }),
+      () =>
+        onRequest({
+          env,
+          request: new Request('https://agrivio-staging-web.pages.dev/api/v1/auth/session'),
+        }),
+    );
+    assert.equal(response.status, status);
+    assert.equal(await response.text(), body);
+    assert.equal(response.headers.get('Retry-After'), '60');
+    assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+  }
+
+  const response = await withFetchMock(
+    async () => {
+      throw new TypeError('Connection failed');
+    },
+    () =>
+      onRequest({
+        env,
+        request: new Request('https://agrivio-staging-web.pages.dev/api/v1/auth/session'),
+      }),
+  );
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { error: { message: 'Upstream API is unavailable' } });
+});

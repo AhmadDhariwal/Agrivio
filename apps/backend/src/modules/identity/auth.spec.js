@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   API_AUTH_CSRF_PATH,
   API_AUTH_LOGIN_PATH,
@@ -21,8 +21,80 @@ import { createAuthModule } from './auth.module';
 import { createBridgedAuthStore } from './auth.bridge-store';
 import { hashPassword } from './password.service';
 import { hashToken } from './crypto-tokens';
+import { createAuthRateLimiter } from './auth.rate-limit';
+import { createBoundedMemoryRateLimitStore } from '../../platform/http/shared-rate-limiter';
 
 describe('F02 Phase 2 session authentication', () => {
+  it.each(['exhausted', 'unavailable'])(
+    'keeps session reads independent of an %s limiter store',
+    async (state) => {
+      const memoryStore = createBoundedMemoryRateLimitStore();
+      const increment = vi.fn(memoryStore.increment);
+      const rateLimiter = createAuthRateLimiter({
+        maxAttempts: 1,
+        store: { increment, reset: memoryStore.reset },
+      });
+      const onboardingRateLimiter = {
+        assertAllowed: vi.fn(() => {
+          throw new Error('Onboarding limiter must not run');
+        }),
+      };
+      const { server, baseUrl, jar, authStore } = await boot({
+        rateLimiter,
+        onboardingRateLimiter,
+      });
+
+      try {
+        const anonymous = await fetchJson(baseUrl, 'GET', API_AUTH_SESSION_PATH);
+        expect(anonymous.status).toBe(401);
+        expect(increment).not.toHaveBeenCalled();
+
+        await seedActiveOwner(authStore, {
+          email: 'session@example.com',
+          password: 'a-strong-passphrase',
+        });
+        const csrf = await fetchJson(baseUrl, 'POST', API_AUTH_CSRF_PATH, {}, {}, jar);
+        const login = await fetchJson(
+          baseUrl,
+          'POST',
+          API_AUTH_LOGIN_PATH,
+          { email: 'session@example.com', password: 'a-strong-passphrase' },
+          { [API_CSRF_HEADER]: csrf.body.data.csrfToken },
+          jar,
+        );
+        expect(login.status).toBe(200);
+
+        if (state === 'exhausted') {
+          await expect(async () => rateLimiter.assertAllowed('login:127.0.0.1')).rejects.toMatchObject({
+            statusCode: 429,
+          });
+        } else {
+          increment.mockRejectedValue(new Error('Mongo limiter store unavailable'));
+          await expect(rateLimiter.assertAllowed('login:127.0.0.1')).rejects.toThrow(
+            'Mongo limiter store unavailable',
+          );
+        }
+        const callsBeforeSession = increment.mock.calls.length;
+        for (let i = 0; i < 3; i += 1) {
+          const session = await fetchJson(
+            baseUrl,
+            'GET',
+            API_AUTH_SESSION_PATH,
+            undefined,
+            {},
+            jar,
+          );
+          expect(session.status).toBe(200);
+          expect(session.body.data.user.email).toBe('session@example.com');
+        }
+        expect(increment).toHaveBeenCalledTimes(callsBeforeSession);
+        expect(onboardingRateLimiter.assertAllowed).not.toHaveBeenCalled();
+      } finally {
+        await close(server);
+      }
+    },
+  );
+
   it('issues CSRF, logs in, exposes session context, and logs out', async () => {
     const { server, baseUrl, jar, authStore } = await boot();
 
@@ -322,6 +394,9 @@ async function boot(options = {}) {
   const onboarding = createOnboardingModule({
     config,
     persistence: 'memory',
+    ...(options.onboardingRateLimiter === undefined
+      ? {}
+      : { onboardingRateLimiter: options.onboardingRateLimiter }),
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   const authStore = createBridgedAuthStore({ identityStore: onboarding.store });
@@ -329,6 +404,7 @@ async function boot(options = {}) {
     config,
     persistence: 'memory',
     store: authStore,
+    ...(options.rateLimiter === undefined ? {} : { rateLimiter: options.rateLimiter }),
     onboardingService: onboarding.onboardingService,
     ...(options.now === undefined ? {} : { now: options.now }),
   });
