@@ -130,11 +130,10 @@ backend session/store-isolation and login/session/logout checks (3 tests), auth 
 The Mongo limiter failure is simulated at the store boundary, not a live production-database test.
 
 Production investigation: a Pages session response carried Render's HTML 502 and
-`x-render-routing: no-deploy`, rather than the proxy's JSON connection-error response. The supplied
-runtime log records successful startup against MongoDB, normal 401 responses, then SIGTERM about
-15 minutes after the last recorded request. A direct production request timed out at 45 seconds;
-subsequent direct and proxied checks returned JSON 401 in about 0.45 and 0.29 seconds. Idle
-spin-down/wake-up is consistent with this evidence but its hosting event is not yet confirmed.
+`x-render-routing: no-deploy`, rather than the proxy's JSON connection-error response. A direct
+production request timed out at 45 seconds; subsequent direct and proxied checks returned JSON
+401 in about 0.45 and 0.29 seconds. These observations do not establish an idle-shutdown cause.
+The later log review below separates staging lifecycle records from production request evidence.
 The intermittent 429's response/event evidence remains outstanding: the inspected session path
 does not call the auth/onboarding limiter or its Mongo bucket store. Do not treat that 429's
 origin or the hosting recovery as a completed production fix without corresponding provider
@@ -147,3 +146,41 @@ to `/signin` or legacy `/login` shows the form without session discovery, includ
 cookie exists. The test still verifies restoration from `/`, protected-page refresh, a second tab,
 and logout propagation between authenticated tabs. Added a separate unavailable-session-endpoint
 check for direct entry, legacy entry, and refresh. No application behavior changes in this follow-up.
+
+## Public homepage session-discovery fallback (2026-11-03)
+
+Reproduced initial navigation on the deployed `main-7IYBZFU2.js` with browser-intercepted session
+responses: 401 rendered the homepage; plain-text 429, plain-text 502, and network failure each
+left the root outlet empty. The root route's `publicOnlyGuard` caught unexpected discovery errors
+and returned false, cancelling navigation. The separate non-blocking Sign In guard was active.
+
+Changed only `publicOnlyGuard`'s error fallback to allow the public page to render. Successful
+session discovery still redirects to the organization/platform workspace or context selector.
+Unexpected errors leave authentication unknown rather than marking the user authenticated or
+logged out. The same fallback applies to the existing public-only reset/onboarding routes.
+Protected-route guards, session persistence, cross-tab behavior, CSRF, RBAC, tenant isolation,
+backend/proxy behavior, and rate limits are unchanged.
+
+The supplied historical 429 has Ray ID `a5499f140f474aec-LHE`, timestamp
+`2026-11-03 07:21:19 UTC` (12:21:19 PKT), response body `Too Many Requests`, content type
+`text/plain`, bundle `main-7IYBZFU2.js`, and an Angular `initialNavigation` Initiator. This supports
+the reproduced root-navigation failure. An infrastructure-generated 429 is the likely source:
+the inspected session path has no app limiter, and Agrivio/proxy-generated errors use JSON.
+This is an inference, not proof of which provider generated it. A Cloudflare Ray ID proves
+Cloudflare handled the response, not that Cloudflare originated it; Render traffic also traverses
+Cloudflare. Provider events and Render logs remain unavailable to this investigation without
+account access or an export; the Render integration is not connected. The user is checking the
+dashboards. The user's log review identified Render startup at `2026-11-02 10:45:28 UTC` and
+SIGTERM at `2026-11-02 11:00:12 UTC` as staging-profile/staging-database records; they cannot
+explain the next day's production 429. The available Cloudflare CSV contains Security Insights
+recommendations, not request events, so it cannot trace the supplied Ray ID. Historical
+retention/plan limitations have not been confirmed and must not be assumed. Remaining evidence
+needed: a production Cloudflare request/security event for that Ray ID and timestamp, and matching
+production Render request/runtime logs (including routing/request identifiers where available).
+No hosting rate-limit change is justified by the available evidence.
+
+Validation passed: focused frontend routing/auth tests (6 files, 38 tests), including homepage
+401/429/502/network-error rendering, strict protected-route handling for the same responses, and
+successful organization/platform/context redirects. `nx build frontend`, formatting of the new
+test file, and `git diff --check` passed. No backend or full E2E suite was run for this change.
+The public fallback is implemented locally; production deployment remains an operator action.
