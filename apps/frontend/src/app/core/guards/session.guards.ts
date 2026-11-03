@@ -28,7 +28,8 @@ export const publicOnlyGuard: CanActivateFn = () => {
     map((session) =>
       session === null ? true : authenticatedDestination(sessionStore, router),
     ),
-    catchError(() => of(false)),
+    // Session discovery must not prevent a public page from rendering.
+    catchError(() => of(true)),
   );
 };
 
