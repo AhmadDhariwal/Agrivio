@@ -214,3 +214,5 @@ There is no data migration or new configuration. Deploy the backend consistently
 instances. Older instances can still replace the stored hash and reject derived tokens for
 legacy sessions, so mixed-version serving or rollback can temporarily restore token conflicts.
 The frontend keeps its per-tab cache, cross-tab invalidation, and explicit retry behavior.
+The cross-origin onboarding regression test verifies that reissuance preserves the token and
+that presenting it with a different session cookie returns HTTP 403.
