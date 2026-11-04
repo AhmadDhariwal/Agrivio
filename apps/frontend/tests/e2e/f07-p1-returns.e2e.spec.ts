@@ -123,7 +123,7 @@ test.describe('F07 P1 sales returns', () => {
       timeout: 10_000,
     });
     await page.getByTestId('sale-save').click();
-    await expect(page).toHaveURL(/\/app\/sales\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/sales\/(?!new)[^/]+(\/edit)?$/);
     await expect(page.getByTestId('sale-post')).toBeVisible();
 
     for (let attempt = 0; attempt < 6; attempt += 1) {
