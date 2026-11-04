@@ -1389,12 +1389,13 @@
   <!-- Master Lifecycle Confirmation Dialog -->
   @if (confirmOpen()) {
   <agrivio-ui-confirm-dialog
+    [open]="confirmOpen()"
     [title]="confirmTitle()"
     [message]="confirmMessage()"
     [confirmLabel]="confirmLabel()"
     tone="danger"
-    (confirm)="confirmLifecycle()"
-    (cancel)="confirmOpen.set(false)"
+    (confirmed)="confirmLifecycle()"
+    (dismiss)="confirmOpen.set(false)"
   />
   }
 </div>

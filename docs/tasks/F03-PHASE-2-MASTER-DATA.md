@@ -86,6 +86,18 @@ npm run e2e -- apps/frontend/tests/e2e/f03-p2-master-data.e2e.spec.ts  # pass
 * **Pricing button presentation**: Replaced visible text in table-view Pricing button with `<span class="ag-sr-only">Pricing</span>` to maintain clean 28x28px square icon button sizing consistent with Inspect, Edit, and Overflow actions, while preserving full accessibility and Playwright link name matching (`f03-p2-master-data.e2e.spec.ts` pass).
 * **Keyboard escape handling**: Added `(keydown.escape)="closeRowMenu()"` and `role="menu"` to the row overflow dropdown in `products.page.html`.
 
+## Products lifecycle confirmation repair (2026-11-04)
+
+The Products page mounted the shared confirmation dialog without setting its `open` input
+and listened for `confirm` and `cancel` instead of `confirmed` and `dismiss`. The deployed
+Products bundle contained the same wiring. The menu click never reached the API, so there was
+no mutation response. The bindings date to commit `b2078986`, before the CSRF changes.
+
+The Products template now opens the dialog and connects its existing outputs. Confirmation
+uses the existing credentialed PATCH or DELETE with `X-CSRF-Token`. The catalog service still
+checks the version for updates and blocks permanent deletion when business references exist.
+Production inspection used public assets and health reads only.
+
 ## Next
 
 * Enable local Mongo `rs0` to execute real-Mongo index proof

@@ -7,9 +7,8 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuthApi, AuthSessionSnapshot } from '../../../auth/data-access/auth.api';
+import { AuthApi } from '../../../auth/data-access/auth.api';
 import { AuthSessionStore } from '../../../auth/data-access/auth-session.store';
-import { environment } from '../../../../../environments/environment';
 import { AuthLayoutComponent } from '../../../../shared/ui/auth-layout/auth-layout.component';
 import { UiAlertComponent } from '../../../../shared/ui/ui-alert/ui-alert.component';
 import { UiFieldLabelComponent } from '../../../../shared/ui/ui-field-label/ui-field-label.component';
@@ -76,25 +75,22 @@ export class ActivatePage implements OnInit {
 
     const { token, password } = this.form.getRawValue();
     this.submitting.set(true);
-    this.authApi
-      .postWithCsrf(`${environment.publicApiBaseUrl}/api/v1/auth/activate`, { token, password })
-      .subscribe({
-        next: (response) => {
-          const payload = response as { data?: { session?: AuthSessionSnapshot } };
-          if (payload.data?.session !== undefined) {
-            this.sessionStore.applySession(payload.data.session);
-          }
-          this.submitting.set(false);
-          this.successMessage.set('Owner account activated. Continue to select your active context.');
-          this.form.patchValue({ password: '', confirmPassword: '' });
-          void this.router.navigateByUrl('/context');
-        },
-        error: () => {
-          this.submitting.set(false);
-          this.errorMessage.set(
-            'Activation failed. The token may be invalid, expired, or already used.',
-          );
-        },
-      });
+    this.authApi.activate(token, password).subscribe({
+      next: ({ session }) => {
+        if (session !== undefined) {
+          this.sessionStore.applySession(session);
+        }
+        this.submitting.set(false);
+        this.successMessage.set('Owner account activated. Continue to select your active context.');
+        this.form.patchValue({ password: '', confirmPassword: '' });
+        void this.router.navigateByUrl('/context');
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.errorMessage.set(
+          'Activation failed. The token may be invalid, expired, or already used.',
+        );
+      },
+    });
   }
 }

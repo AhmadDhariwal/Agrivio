@@ -58,14 +58,18 @@ describe('AuthSessionCrossTabService', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/signin');
   });
 
-  it('authoritatively restores the shared cookie session in a public second tab', () => {
-    const { service, sessionStore, router } = setup();
-    service.start();
-    FakeBroadcastChannel.latest?.emit({ type: 'SESSION_CHANGED' });
+  it.each(['SESSION_CHANGED', 'CONTEXT_CHANGED'])(
+    'invalidates CSRF and restores the shared cookie after %s in another tab',
+    (type) => {
+      const { service, authApi, sessionStore, router } = setup();
+      service.start();
+      FakeBroadcastChannel.latest?.emit({ type });
 
-    expect(sessionStore.loadSession).toHaveBeenCalledWith({ force: true });
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/app');
-  });
+      expect(authApi.clearSecurityState).toHaveBeenCalledOnce();
+      expect(sessionStore.loadSession).toHaveBeenCalledWith({ force: true });
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/app');
+    },
+  );
 
   function setup(initialUrl = '/signin') {
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);

@@ -66,6 +66,7 @@ export class AuthSessionCrossTabService {
       return;
     }
 
+    this.authApi.clearSecurityState();
     this.sessionStore
       .loadSession({ force: true })
       .pipe(catchError(() => EMPTY))

@@ -184,3 +184,33 @@ Validation passed: focused frontend routing/auth tests (6 files, 38 tests), incl
 successful organization/platform/context redirects. `nx build frontend`, formatting of the new
 test file, and `git diff --check` passed. No backend or full E2E suite was run for this change.
 The public fallback is implemented locally; production deployment remains an operator action.
+
+## Frontend CSRF token reuse (2026-11-04)
+
+The backend stores one CSRF hash per session. Issuance replaces that hash and may create a
+pre-authentication session when the cookie is missing or expired. The frontend now shares one
+issuance request per tab and reuses the resulting token in memory. Login, context switching,
+activation, and password reset adopt the rotated token from the server.
+
+Logout, authoritative session loss, and remote session or context changes invalidate the local
+token and cancel pending issuance. A confirmed CSRF rejection invalidates only the token sent with
+the failed request. The next attempt obtains a fresh token without replaying the failed mutation.
+Tabs exchange session events without transmitting tokens. If another tab rotates the CSRF hash
+through issuance alone, the backend rejects an old token and the next attempt refreshes it.
+
+Protected writes still send `X-CSRF-Token` with the credentialed request. The backend continues
+to validate the HttpOnly session cookie, request origin, and token on protected writes. The
+historical production session 429 described above remains unattributed.
+
+## Stable CSRF issuance for shared browser sessions (2026-11-04)
+
+The backend derives a stable CSRF token with HMAC-SHA-256 using the opaque session cookie
+secret and a versioned CSRF label. Issuance for a live session preserves the existing cookie
+and expiry behavior and leaves its stored CSRF hash intact. Session rotation changes the cookie
+secret and therefore the derived token. Validation still requires a live session and accepts the
+last stored legacy token for that session until expiry or rotation.
+
+There is no data migration or new configuration. Deploy the backend consistently across serving
+instances. Older instances can still replace the stored hash and reject derived tokens for
+legacy sessions, so mixed-version serving or rollback can temporarily restore token conflicts.
+The frontend keeps its per-tab cache, cross-tab invalidation, and explicit retry behavior.
