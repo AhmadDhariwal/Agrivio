@@ -3,7 +3,9 @@ import {
   API_AUTH_CSRF_PATH,
   API_AUTH_LOGIN_PATH,
   API_AUTH_NAVIGATION_PREFERENCES_PATH,
+  API_AUTH_SESSION_CONTEXT_PATH,
   API_CSRF_HEADER,
+  API_SESSION_COOKIE_NAME,
 } from '@agrivio/api-contracts';
 import { createServer } from 'node:http';
 import { createApp } from '../../app';
@@ -17,6 +19,120 @@ import {
   createNavigationPreferencesService,
 } from './navigation-preferences.service';
 import { hashPassword } from './password.service';
+import { generateOpaqueToken, hashToken } from './crypto-tokens';
+
+describe('CSRF across tabs sharing a cookie', () => {
+  it.each(['current', 'legacy'])(
+    'supports concurrent issuance and writes for a %s session',
+    async (kind) => {
+      let now = new Date();
+      const { server, baseUrl, jar, authStore } = await boot({ now: () => now });
+      try {
+        const email = 'tabs@example.com';
+        const password = 'a-strong-passphrase';
+        const user = await seedUser(authStore, { email, password, role: 'Owner' });
+        await authStore.insertMembership(null, {
+          organizationId: 'org-2',
+          userId: user['_id'],
+          role: 'Owner',
+          status: 'active',
+          conditionalPermissionGrants: [],
+          version: 1,
+        });
+        const issue = (tab) => fetchJson(baseUrl, 'POST', API_AUTH_CSRF_PATH, {}, {}, tab);
+        const preauth = await issue(jar);
+        const login = await fetchJson(
+          baseUrl,
+          'POST',
+          API_AUTH_LOGIN_PATH,
+          { email, password },
+          {
+            [API_CSRF_HEADER]: preauth.body.data.csrfToken,
+          },
+          jar,
+        );
+        expect(login.status).toBe(200);
+        const originalCookie = jar.header();
+        const tabB = {
+          header: () => originalCookie,
+          absorb: () => undefined,
+        };
+        const record = await authStore.findSessionByTokenHash(
+          hashToken(jar.get(API_SESSION_COOKIE_NAME)),
+        );
+        let tokenA = login.body.data.csrfToken;
+        if (kind === 'legacy') {
+          const legacy = generateOpaqueToken();
+          await authStore.updateSession(null, String(record['_id']), {
+            csrfHash: legacy.tokenHash,
+          });
+          tokenA = legacy.token;
+        }
+
+        const write = (token, id, tab, extraHeaders = {}) =>
+          fetchJson(
+            baseUrl,
+            'PUT',
+            API_AUTH_NAVIGATION_PREFERENCES_PATH,
+            { hiddenItemIds: [id] },
+            {
+              [API_CSRF_HEADER]: token,
+              ...extraHeaders,
+            },
+            tab,
+          );
+
+        const [first, second] = await Promise.all([issue(jar), issue(tabB)]);
+        expect([first.status, second.status]).toEqual([200, 200]);
+        const tokenB = second.body.data.csrfToken;
+        expect(first.body.data.csrfToken).toBe(tokenB);
+        expect(tokenB).toBe(login.body.data.csrfToken);
+        expect(jar.header()).toBe(originalCookie);
+
+        const [writeA, writeB] = await Promise.all([
+          write(tokenA, 'sales.history', jar),
+          write(tokenB, 'inventory.stock', tabB),
+        ]);
+        expect(writeA.status).toBe(200);
+        expect(writeA.body.data.hiddenItemIds).toEqual(['sales.history']);
+        expect(writeB.status).toBe(200);
+        expect(writeB.body.data.hiddenItemIds).toEqual(['inventory.stock']);
+        expect((await write(tokenB, 'sales.history')).status).toBe(401);
+        expect(
+          (await write(tokenB, 'sales.history', jar, { origin: 'https://untrusted.example' }))
+            .status,
+        ).toBe(403);
+
+        const switched = await fetchJson(
+          baseUrl,
+          'POST',
+          API_AUTH_SESSION_CONTEXT_PATH,
+          {
+            contextType: 'organization',
+            organizationId: 'org-2',
+          },
+          { [API_CSRF_HEADER]: tokenB },
+          jar,
+        );
+        expect(switched.status).toBe(200);
+        expect(switched.body.data.session.activeContext.organizationId).toBe('org-2');
+        expect(jar.header()).not.toBe(originalCookie);
+        const rotated = switched.body.data.csrfToken;
+        expect(rotated).not.toBe(tokenB);
+        expect((await write(tokenB, 'sales.history', tabB)).status).toBe(401);
+        expect((await write(tokenA, 'sales.history', jar)).status).toBe(403);
+        expect((await write(tokenB, 'sales.history', jar)).status).toBe(403);
+        expect((await issue(jar)).body.data.csrfToken).toBe(rotated);
+        expect((await write(rotated, 'sales.history', jar)).status).toBe(200);
+
+        now = new Date(now.getTime() + 13 * 60 * 60 * 1000);
+        expect((await write(rotated, 'sales.history', jar)).status).toBe(401);
+      } finally {
+        await close(server);
+      }
+    },
+  );
+});
 
 function createCookieJar() {
   const cookies = new Map();
@@ -188,7 +304,10 @@ describe('Navigation preferences service & validation', () => {
   });
 
   it('validates groupOrder and itemOrderByGroup, ignoring duplicate IDs', () => {
-    const { validateGroupOrder, validateItemOrderByGroup } = require('./navigation-preferences.service');
+    const {
+      validateGroupOrder,
+      validateItemOrderByGroup,
+    } = require('./navigation-preferences.service');
     expect(() => validateGroupOrder({ not: 'array' })).toThrow();
     expect(validateGroupOrder(['inventory', 'sales', 'inventory'])).toEqual(['inventory', 'sales']);
     expect(() => validateItemOrderByGroup(['nope'])).toThrow();

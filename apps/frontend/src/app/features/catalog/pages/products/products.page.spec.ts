@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { signal } from '@angular/core';
 import { ProductsPage } from './products.page';
 import { CatalogApi } from '../../data-access/catalog.api';
@@ -12,9 +13,13 @@ describe('ProductsPage', () => {
   let fixture: ComponentFixture<ProductsPage>;
   let capabilityState: ReturnType<typeof signal<Record<string, Record<string, boolean>>>>;
   let searchCategoryOptions: ReturnType<typeof vi.fn>;
+  let updateProduct: ReturnType<typeof vi.fn>;
+  let deleteProduct: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     capabilityState = signal({});
+    updateProduct = vi.fn(() => of({}));
+    deleteProduct = vi.fn(() => of({ id: 'prod-1', deleted: true }));
     searchCategoryOptions = vi.fn(() =>
       of([{ id: 'cat-1', name: 'Fertilizers', productClass: 'fertilizer' }]),
     );
@@ -48,6 +53,8 @@ describe('ProductsPage', () => {
                 meta: { page: 1, pageSize: 25, total: 1 },
               }),
             searchCategoryOptions,
+            updateProduct,
+            deleteProduct,
             listPackagingUnits: () => of([]),
             listPrices: () => of([]),
           },
@@ -177,5 +184,68 @@ describe('ProductsPage', () => {
     const moduleInfo = fixture.nativeElement.querySelector('agrivio-ui-module-info');
     expect(moduleInfo).not.toBeNull();
     expect(moduleInfo.textContent).toContain('About Product Catalog');
+  });
+
+  function openLifecycleDialog(action: 'deactivate' | 'delete') {
+    fixture.nativeElement.querySelector('button[aria-label="More actions"]').click();
+    fixture.detectChanges();
+    const trigger: HTMLButtonElement = fixture.nativeElement.querySelector(
+      `[data-testid="product-${action}"]`,
+    );
+    expect(trigger.disabled).toBe(false);
+    trigger.click();
+    fixture.detectChanges();
+    const dialog: HTMLElement = fixture.nativeElement.querySelector('[role="alertdialog"]');
+    expect(dialog).not.toBeNull();
+    return [
+      dialog.querySelector<HTMLButtonElement>('.ag-btn--secondary')!,
+      dialog.querySelector<HTMLButtonElement>('.ag-btn--danger')!,
+    ] as const;
+  }
+
+  it.each(['deactivate', 'delete'] as const)(
+    'requires confirmation before it can %s a product',
+    (action) => {
+      const [cancel] = openLifecycleDialog(action);
+      expect(updateProduct).not.toHaveBeenCalled();
+      expect(deleteProduct).not.toHaveBeenCalled();
+      cancel.click();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
+      expect(updateProduct).not.toHaveBeenCalled();
+      expect(deleteProduct).not.toHaveBeenCalled();
+
+      const [, confirm] = openLifecycleDialog(action);
+      confirm.click();
+      if (action === 'deactivate') {
+        expect(updateProduct).toHaveBeenCalledExactlyOnceWith('prod-1', {
+          expectedVersion: 1,
+          status: 'inactive',
+        });
+        expect(component.successMessage()).toBe('Product deactivated.');
+      } else {
+        expect(deleteProduct).toHaveBeenCalledExactlyOnceWith('prod-1');
+        expect(component.successMessage()).toBe('Product deleted.');
+      }
+    },
+  );
+
+  it.each([
+    ['deactivate', 'VERSION_CONFLICT', 'Product version is stale.'],
+    ['delete', 'RECORD_IN_USE', 'Product has existing stock history.'],
+  ] as const)('surfaces a rejected %s without reporting success', (action, code, message) => {
+    const request = action === 'deactivate' ? updateProduct : deleteProduct;
+    request.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, error: { error: { code, message } } })),
+    );
+    const [, confirm] = openLifecycleDialog(action);
+    confirm.click();
+    expect(request).toHaveBeenCalledOnce();
+    expect(component.errorMessage()).toBe(
+      action === 'deactivate'
+        ? message
+        : 'This record cannot be deleted because it is in use. Deactivate it instead.',
+    );
+    expect(component.successMessage()).toBeFalsy();
   });
 });

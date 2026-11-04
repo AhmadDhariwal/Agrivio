@@ -226,36 +226,43 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
       const mismatchedBody = await mismatchedCsrf.json();
       expect(mismatchedBody.error.message).toBe('CSRF validation failed');
 
-      const rotatedCsrfRes = await fetch(`${baseUrl}${API_AUTH_CSRF_PATH}`, {
+      const repeatedCsrf = await fetch(`${baseUrl}${API_AUTH_CSRF_PATH}`, {
         method: 'POST',
         headers: { origin: webOrigin, cookie, 'content-type': 'application/json' },
         body: '{}',
       });
-      expect(rotatedCsrfRes.status).toBe(200);
-      const rotatedBody = await rotatedCsrfRes.json();
-      const newCsrfToken = rotatedBody.data.csrfToken;
-      expect(newCsrfToken).not.toBe(csrfToken);
+      expect(repeatedCsrf.status).toBe(200);
+      expect((await repeatedCsrf.json()).data.csrfToken).toBe(csrfToken);
 
-      const staleCsrf = await fetch(
+      const otherSession = await fetch(`${baseUrl}${API_AUTH_CSRF_PATH}`, {
+        method: 'POST',
+        headers: { origin: webOrigin, 'content-type': 'application/json' },
+        body: '{}',
+      });
+      expect(otherSession.status).toBe(200);
+      const otherCookie = otherSession.headers.getSetCookie()[0].split(';')[0];
+      expect(otherCookie).not.toBe(cookie);
+      expect((await otherSession.json()).data.csrfToken).not.toBe(csrfToken);
+
+      const crossSessionCsrf = await fetch(
         `${baseUrl}${API_ORGANIZATION_ACTIVATION_REQUESTS_PATH}`,
         {
           method: 'POST',
           headers: {
             origin: webOrigin,
-            cookie,
+            cookie: otherCookie,
             'content-type': 'application/json',
             [API_CSRF_HEADER]: csrfToken,
           },
           body: JSON.stringify({
-            organizationName: 'Stale CSRF Farm',
-            ownerEmail: 'stale-csrf@example.com',
-            ownerDisplayName: 'Stale CSRF Owner',
+            organizationName: 'Cross Session Farm',
+            ownerEmail: 'cross-session-csrf@example.com',
+            ownerDisplayName: 'Cross Session Owner',
           }),
         },
       );
-      expect(staleCsrf.status).toBe(403);
-      const staleBody = await staleCsrf.json();
-      expect(staleBody.error.message).toBe('CSRF validation failed');
+      expect(crossSessionCsrf.status).toBe(403);
+      expect((await crossSessionCsrf.json()).error.message).toBe('CSRF validation failed');
 
       const submitted = await fetch(`${baseUrl}${API_ORGANIZATION_ACTIVATION_REQUESTS_PATH}`, {
         method: 'POST',
@@ -263,7 +270,7 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
           origin: webOrigin,
           cookie,
           'content-type': 'application/json',
-          [API_CSRF_HEADER]: newCsrfToken,
+          [API_CSRF_HEADER]: csrfToken,
         },
         body: JSON.stringify({
           organizationName: 'Cross Site Farm',
@@ -278,7 +285,7 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
         headers: {
           origin: webOrigin,
           'content-type': 'application/json',
-          [API_CSRF_HEADER]: newCsrfToken,
+          [API_CSRF_HEADER]: csrfToken,
         },
         body: JSON.stringify({ token: 'dummy-token', password: 'Password123456!' }),
       });
@@ -292,7 +299,7 @@ describe('F02 Phase 6 CORS and E2E bootstrap', () => {
           origin: webOrigin,
           cookie,
           'content-type': 'application/json',
-          [API_CSRF_HEADER]: newCsrfToken,
+          [API_CSRF_HEADER]: csrfToken,
         },
         body: JSON.stringify({ token: 'dummy-token', password: 'Password123456!' }),
       });

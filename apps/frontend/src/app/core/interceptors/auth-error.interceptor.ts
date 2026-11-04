@@ -5,6 +5,7 @@ import { catchError, throwError } from 'rxjs';
 import { mapAuthorizationError } from '../access/authorization-error';
 import { APP_PATHS } from '../navigation/app-paths';
 import { AuthSessionCrossTabService } from '../../features/auth/data-access/auth-session-cross-tab.service';
+import { AuthApi } from '../../features/auth/data-access/auth.api';
 
 /**
  * Global HTTP interceptor that intercepts 401 Unauthorized responses.
@@ -15,9 +16,27 @@ import { AuthSessionCrossTabService } from '../../features/auth/data-access/auth
 export const authErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const crossTab = inject(AuthSessionCrossTabService);
+  const authApi = inject(AuthApi);
 
   return next(req).pipe(
     catchError((error: unknown) => {
+      if (error instanceof HttpErrorResponse) {
+        const payload = error.error?.error;
+        const rejectedToken = req.headers.get('X-CSRF-Token');
+        const csrfRejected =
+          error.status === 403 &&
+          payload?.code === 'FORBIDDEN' &&
+          payload?.message === 'CSRF validation failed';
+        const sessionExpired =
+          error.status === 401 &&
+          payload?.code === 'UNAUTHORIZED' &&
+          (payload?.message === 'Session has expired' ||
+            payload?.message === 'Session is no longer valid');
+        if (rejectedToken !== null && (csrfRejected || sessionExpired)) {
+          authApi.invalidateCsrf(rejectedToken);
+        }
+      }
+
       if (error instanceof HttpErrorResponse && error.status === 401) {
         const isAuthAttempt =
           req.url.includes('/api/v1/auth/login') ||

@@ -1,6 +1,12 @@
 const { createAuditWriter } = require('../../platform/audit/audit-writer');
 const { conflict, forbidden, unauthorized } = require('../../platform/errors/app-error');
-const { generateOpaqueToken, generatePasswordResetToken, hashToken } = require('./crypto-tokens');
+const {
+  deriveCsrfToken,
+  equalTokenHashes,
+  generateOpaqueToken,
+  generatePasswordResetToken,
+  hashToken,
+} = require('./crypto-tokens');
 const { hashPassword, verifyPassword } = require('./password.service');
 const {
   permissionsForMembershipRole,
@@ -175,13 +181,13 @@ function createAuthService(deps) {
 
   async function createAuthenticatedSession(user, context, at) {
     const sessionToken = generateOpaqueToken();
-    const csrfToken = generateOpaqueToken();
+    const csrfToken = deriveCsrfToken(sessionToken.token);
     const absoluteExpiresAt = new Date(at.getTime() + ABSOLUTE_MS);
     const expiresAt = computeExpiry(at, absoluteExpiresAt);
 
     const record = await store.insertSession(null, {
       tokenHash: sessionToken.tokenHash,
-      csrfHash: csrfToken.tokenHash,
+      csrfHash: hashToken(csrfToken),
       userId: user['_id'],
       ...sessionFieldsForContext(context),
       absoluteExpiresAt,
@@ -192,7 +198,7 @@ function createAuthService(deps) {
     return {
       sessionRecord: record,
       sessionToken: sessionToken.token,
-      csrfToken: csrfToken.token,
+      csrfToken,
       maxAgeSeconds: Math.max(1, Math.floor((expiresAt.getTime() - at.getTime()) / 1000)),
     };
   }
@@ -308,14 +314,9 @@ function createAuthService(deps) {
         if (existing !== null) {
           try {
             assertSessionAlive(existing, at);
-            const csrf = generateOpaqueToken();
-            await store.updateSession(null, String(existing['_id']), {
-              csrfHash: csrf.tokenHash,
-              lastSeenAt: at,
-              expiresAt: computeExpiry(at, asDate(existing.absoluteExpiresAt)),
-            });
+            await touchSession(existing, at);
             return {
-              csrfToken: csrf.token,
+              csrfToken: deriveCsrfToken(sessionToken),
               sessionToken,
               maxAgeSeconds: Math.max(
                 1,
@@ -330,12 +331,12 @@ function createAuthService(deps) {
       }
 
       const sessionOpaque = generateOpaqueToken();
-      const csrf = generateOpaqueToken();
+      const csrfToken = deriveCsrfToken(sessionOpaque.token);
       const absoluteExpiresAt = new Date(at.getTime() + PREAUTH_MS);
       const expiresAt = absoluteExpiresAt;
       await store.insertSession(null, {
         tokenHash: sessionOpaque.tokenHash,
-        csrfHash: csrf.tokenHash,
+        csrfHash: hashToken(csrfToken),
         activeContextType: 'none',
         absoluteExpiresAt,
         lastSeenAt: at,
@@ -343,7 +344,7 @@ function createAuthService(deps) {
       });
 
       return {
-        csrfToken: csrf.token,
+        csrfToken,
         sessionToken: sessionOpaque.token,
         maxAgeSeconds: Math.max(1, Math.floor((expiresAt.getTime() - at.getTime()) / 1000)),
         rotatedSession: true,
@@ -362,7 +363,12 @@ function createAuthService(deps) {
         throw forbidden('CSRF validation failed');
       }
       assertSessionAlive(session, now());
-      if (session.csrfHash !== hashToken(csrfToken)) {
+      const presentedHash = hashToken(csrfToken);
+      // Keep the last issued legacy token valid until this session expires or rotates.
+      if (
+        !equalTokenHashes(presentedHash, hashToken(deriveCsrfToken(sessionToken))) &&
+        !equalTokenHashes(presentedHash, session.csrfHash)
+      ) {
         throw forbidden('CSRF validation failed');
       }
       return session;

@@ -46,7 +46,7 @@ test.describe('F07 P4 returns vertical slice', () => {
     await page.getByTestId('sale-line-quantity').fill('2');
     await expect(page.getByTestId('sale-line-unit-price')).toHaveValue('100.00', { timeout: 10_000 });
     await page.getByTestId('sale-save').click();
-    await expect(page).toHaveURL(/\/app\/sales\/[^/]+$/);
+    await expect(page).toHaveURL(/\/app\/sales\/(?!new)[^/]+(\/edit)?$/);
     await expect(page.getByTestId('sale-post')).toBeVisible();
     for (let attempt = 0; attempt < 6; attempt += 1) {
       if ((await page.getByTestId('sale-payment-account').count()) >= 1) {

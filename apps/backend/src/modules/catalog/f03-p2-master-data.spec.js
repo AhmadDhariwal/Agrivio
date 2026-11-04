@@ -294,6 +294,27 @@ describe('F03 P2 catalog/customers/suppliers/accounts', () => {
       );
       expect(productLimit.status).toBe(403);
 
+      const disposable = product2.body.data;
+      const disposablePath = `${API_PRODUCTS_PATH}/${disposable.id}`;
+      const csrfHeaders = { [API_CSRF_HEADER]: await issueCsrf(baseUrl, jar) };
+      const deactivated = await fetchJson(
+        baseUrl,
+        'PATCH',
+        disposablePath,
+        { expectedVersion: disposable.version, status: 'inactive' },
+        csrfHeaders,
+        jar,
+      );
+      expect(deactivated.status).toBe(200);
+      expect(deactivated.body.data).toMatchObject({ id: disposable.id, status: 'inactive' });
+
+      const deniedDelete = await fetchJson(baseUrl, 'DELETE', disposablePath, undefined, {}, jar);
+      expect(deniedDelete.status).toBe(403);
+      expect(deniedDelete.body.error.message).toBe('CSRF validation failed');
+      const deleted = await fetchJson(baseUrl, 'DELETE', disposablePath, undefined, csrfHeaders, jar);
+      expect(deleted.status).toBe(200);
+      expect(deleted.body.data).toEqual({ id: disposable.id, deleted: true });
+
       await login(baseUrl, jar, 'f03p2-owner-b@example.com', 'a-strong-passphrase');
       const crossProduct = await fetchJson(
         baseUrl,

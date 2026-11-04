@@ -1,4 +1,4 @@
-const { createHash, randomBytes } = require('node:crypto');
+const { createHash, createHmac, randomBytes, timingSafeEqual } = require('node:crypto');
 
 function hashToken(plaintext) {
   return createHash('sha256').update(plaintext, 'utf8').digest('hex');
@@ -7,6 +7,19 @@ function hashToken(plaintext) {
 function generateOpaqueToken() {
   const token = randomBytes(32).toString('base64url');
   return { token, tokenHash: hashToken(token) };
+}
+
+function deriveCsrfToken(sessionToken) {
+  // Use the opaque cookie secret, never its persisted hash, as the HMAC key.
+  return createHmac('sha256', sessionToken).update('agrivio:csrf:v1').digest('base64url');
+}
+
+function equalTokenHashes(actual, expected) {
+  return (
+    typeof expected === 'string' &&
+    /^[0-9a-f]{64}$/.test(expected) &&
+    timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(expected, 'hex'))
+  );
 }
 
 function generateActivationToken() {
@@ -36,6 +49,8 @@ function buildApplicantFingerprint(input) {
 module.exports = {
   hashToken,
   generateOpaqueToken,
+  deriveCsrfToken,
+  equalTokenHashes,
   generateActivationToken,
   generatePasswordResetToken,
   normalizeEmail,
